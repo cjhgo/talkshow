@@ -1,0 +1,12 @@
+# Core dependencies
+pytest>=7.0.0
+
+# Development dependencies
+pytest-cov>=4.0.0
+
+# Future dependencies (for later phases)
+# click>=8.0.0
+# fastapi>=0.100.0
+# uvicorn>=0.20.0
+# litellm>=1.0.0
+# pyyaml>=6.0.0

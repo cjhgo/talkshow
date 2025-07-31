@@ -1,0 +1,75 @@
+# TalkShow Configuration File
+
+# Parser settings
+parser:
+  # Default history directory
+  history_directory: "history"
+  
+  # File patterns to include
+  include_patterns:
+    - "*.md"
+  
+  # File patterns to exclude
+  exclude_patterns:
+    - "README.md"
+    - ".*"
+
+# Summarizer settings
+summarizer:
+  # Rule-based summarizer settings
+  rule:
+    max_question_length: 20
+    max_answer_length: 80
+  
+  # LLM summarizer settings (for future use)
+  llm:
+    provider: "openai"
+    model: "gpt-3.5-turbo"
+    max_tokens: 150
+    temperature: 0.3
+
+# Storage settings
+storage:
+  # Default storage type: json or sqlite
+  type: "json"
+  
+  # JSON storage settings
+  json:
+    file_path: "data/sessions.json"
+    backup_enabled: true
+    backup_interval: "daily"
+  
+  # SQLite storage settings (for future use)
+  sqlite:
+    database_path: "data/sessions.db"
+    backup_enabled: true
+
+# CLI settings
+cli:
+  # Default output format
+  output_format: "table"
+  
+  # Pagination settings
+  page_size: 20
+  
+  # Date format for display
+  date_format: "%Y-%m-%d %H:%M:%S"
+
+# Web server settings (for future use)
+web:
+  host: "127.0.0.1"
+  port: 8000
+  debug: false
+  
+  # CORS settings
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
+
+# Logging settings
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/talkshow.log"
