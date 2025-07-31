@@ -87,11 +87,9 @@ class MDParser:
                 assistant_sections.append(section)
             
             elif current_question and assistant_sections:
-                # This might be a content section that belongs to the assistant
-                # Check if it has meaningful content
-                content_text = section.strip()
-                if content_text and not content_text.startswith('```'):
-                    assistant_sections.append(section)
+                # This is content that belongs to the current assistant response
+                # Include ALL sections after assistant marker until next user question
+                assistant_sections.append(section)
         
         # Process final QA pair if exists
         if current_question and assistant_sections:
@@ -109,9 +107,15 @@ class MDParser:
         # Combine all assistant sections
         combined_content = '\n---\n'.join(assistant_sections)
         
-        # Extract answer content and timestamp
+        # Extract answer content and timestamp from combined content
         answer_content = self._extract_assistant_content(combined_content)
+        
+        # Extract timestamp from the complete combined content (not just assistant content)
+        # This allows finding timestamps in command output sections
         timestamp = self.time_extractor.extract_from_assistant_section(combined_content)
+        if not timestamp:
+            # Fallback: try to extract any timestamp from the combined sections
+            timestamp = self.time_extractor.extract_first_timestamp(combined_content)
         
         if answer_content:  # Only create QA pair if we have actual answer content
             return QAPair(

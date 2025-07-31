@@ -7,7 +7,7 @@ from typing import Optional
 class RuleSummarizer:
     """Simple rule-based text summarizer."""
     
-    def __init__(self, max_question_length: int = 20, max_answer_length: int = 80):
+    def __init__(self, max_question_length: int = 60, max_answer_length: int = 120):
         """Initialize rule summarizer.
         
         Args:
