@@ -133,13 +133,16 @@ class TalkShowApp {
         const filteredSessions = this.getFilteredSessions();
         const timeMarkers = this.generateTimeMarkers(filteredSessions);
         
+        // 计算需要的高度：时间标记数量 * 每格高度
+        const timelineHeight = Math.max(600, timeMarkers.length * 50 + 100);
+        
         return `
             <div class="timeline-container">
                 <div class="timeline-header">
-                    <h3>📊 时间轴视图</h3>
-                    <span class="text-muted">显示 ${filteredSessions.length} 个会话</span>
+                    <h3>📊 时间轴视图 (半小时刻度)</h3>
+                    <span class="text-muted">显示 ${filteredSessions.length} 个会话，${timeMarkers.length} 个时间点</span>
                 </div>
-                <div class="timeline-view">
+                <div class="timeline-view" style="height: ${timelineHeight}px;">
                     ${this.renderTimeAxis(timeMarkers)}
                     ${this.renderSessionsGrid(filteredSessions)}
                 </div>
@@ -151,9 +154,11 @@ class TalkShowApp {
         return `
             <div class="time-axis">
                 ${timeMarkers.map(marker => `
-                    <div class="time-marker" data-time="${marker.time}">
-                        <div style="font-weight: bold;">${marker.date}</div>
-                        <div class="text-small text-muted">${marker.time}</div>
+                    <div class="time-marker ${marker.isHour ? 'hour-mark' : 'half-hour-mark'} ${marker.isNewDay ? 'new-day' : ''}" data-time="${marker.time}">
+                        ${marker.showDate ? `<div class="date-header">${marker.date}</div>` : ''}
+                        <div class="time-text ${marker.isHour ? 'hour-text' : 'half-hour-text'}">
+                            ${marker.timeDisplay}
+                        </div>
                     </div>
                 `).join('')}
             </div>
@@ -172,21 +177,34 @@ class TalkShowApp {
         return `
             <div class="session-column" data-filename="${session.filename}">
                 <div class="session-header">
-                    <div class="session-title text-truncate" title="${session.theme}">
-                        ${session.theme}
-                    </div>
+                    <a href="/view/${encodeURIComponent(session.filename)}" class="session-title text-truncate" title="点击查看原文: ${session.theme}">
+                        📄 ${session.theme}
+                    </a>
                     <div class="session-meta">
                         <div>${session.qa_count} Q&As</div>
                         <div class="text-small">${this.formatDate(session.created_time)}</div>
                     </div>
                 </div>
                 <div class="session-content" id="session-${session.filename}">
-                    <div class="loading">加载中...</div>
+                    <div class="loading">将显示Q&A摘要...</div>
                 </div>
             </div>
         `;
     }
     
+    // 计算Q/A在时间轴上的位置
+    calculateQAPosition(qaTimestamp, startTime) {
+        if (!qaTimestamp || !startTime) return 0;
+        
+        const qa = new Date(qaTimestamp);
+        const start = new Date(startTime);
+        
+        const minutesDiff = (qa - start) / (1000 * 60); // 分钟差
+        const slotHeight = 50; // 每个30分钟格子的高度(px)
+        
+        return Math.max(0, (minutesDiff / 30) * slotHeight); // 计算top位置
+    }
+
     async loadSessionContent(filename) {
         try {
             const response = await fetch(`/api/sessions/${encodeURIComponent(filename)}`);
@@ -198,21 +216,34 @@ class TalkShowApp {
             const container = document.getElementById(`session-${filename}`);
             
             if (container) {
-                container.innerHTML = session.qa_pairs.map((qa, index) => `
-                    <div class="qa-pair" data-qa-index="${index}">
-                        <div class="question">
-                            <div class="question-text">
-                                ${qa.question_summary || this.truncateText(qa.question, 100)}
+                // 获取时间轴的起始时间
+                const filteredSessions = this.getFilteredSessions();
+                const allTimes = filteredSessions
+                    .map(s => s.created_time)
+                    .filter(Boolean)
+                    .sort();
+                
+                const startTime = allTimes.length > 0 ? allTimes[0] : null;
+                
+                container.innerHTML = session.qa_pairs.map((qa, index) => {
+                    const position = qa.timestamp ? this.calculateQAPosition(qa.timestamp, startTime) : index * 60;
+                    
+                    return `
+                        <div class="qa-pair" data-qa-index="${index}" style="top: ${position}px;">
+                            <div class="question">
+                                <div class="question-text">
+                                    ${qa.question_summary || this.truncateText(qa.question, 100)}
+                                </div>
                             </div>
-                        </div>
-                        <div class="answer">
-                            <div class="answer-text">
-                                ${qa.answer_summary || this.truncateText(qa.answer, 150)}
+                            <div class="answer">
+                                <div class="answer-text">
+                                    ${qa.answer_summary || this.truncateText(qa.answer, 150)}
+                                </div>
                             </div>
+                            ${qa.timestamp ? `<div class="qa-timestamp">${this.formatDateTime(qa.timestamp)}</div>` : ''}
                         </div>
-                        ${qa.timestamp ? `<div class="qa-timestamp">${this.formatDateTime(qa.timestamp)}</div>` : ''}
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
             
         } catch (error) {
@@ -251,20 +282,41 @@ class TalkShowApp {
     }
     
     setupIntersectionObserver() {
+        console.log('设置混合加载策略：立即加载前8个，其余懒加载');
+        
+        const allSessions = document.querySelectorAll('.session-column');
+        console.log(`找到 ${allSessions.length} 个会话列`);
+        
+        // 立即加载前8个会话的内容，确保用户看到Q&A摘要
+        allSessions.forEach((column, index) => {
+            const filename = column.dataset.filename;
+            if (filename && index < 8) {
+                console.log(`立即加载会话 ${index + 1}: ${filename}`);
+                this.loadSessionContent(filename);
+                column.dataset.loaded = 'true';
+            }
+        });
+        
+        // 为剩余的会话设置懒加载
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     const filename = entry.target.dataset.filename;
-                    if (filename) {
+                    if (filename && !entry.target.dataset.loaded) {
+                        console.log(`懒加载会话内容: ${filename}`);
                         this.loadSessionContent(filename);
+                        entry.target.dataset.loaded = 'true';
                         observer.unobserve(entry.target);
                     }
                 }
             });
         }, { threshold: 0.1 });
         
-        document.querySelectorAll('.session-column').forEach(column => {
-            observer.observe(column);
+        // 只对第8个之后的会话使用懒加载观察
+        allSessions.forEach((column, index) => {
+            if (index >= 8) {
+                observer.observe(column);
+            }
         });
     }
     
@@ -273,11 +325,39 @@ class TalkShowApp {
         const timeAxis = document.querySelector('.time-axis');
         
         if (timelineView && timeAxis) {
+            // 同步垂直滚动
             timelineView.addEventListener('scroll', () => {
-                // You can add scroll synchronization logic here
-                // For example, highlighting the current time marker based on scroll position
+                timeAxis.scrollTop = timelineView.scrollTop;
+                
+                // 高亮当前时间范围
+                this.highlightCurrentTimeRange();
+            });
+            
+            // 同步时间轴的滚动
+            timeAxis.addEventListener('scroll', () => {
+                timelineView.scrollTop = timeAxis.scrollTop;
             });
         }
+    }
+    
+    highlightCurrentTimeRange() {
+        const timelineView = document.querySelector('.timeline-view');
+        if (!timelineView) return;
+        
+        const scrollTop = timelineView.scrollTop;
+        const viewHeight = timelineView.clientHeight;
+        const timeMarkers = document.querySelectorAll('.time-marker');
+        
+        timeMarkers.forEach((marker, index) => {
+            const markerTop = index * 50; // 每个标记50px高度
+            const isVisible = markerTop >= scrollTop && markerTop <= scrollTop + viewHeight;
+            
+            if (isVisible) {
+                marker.classList.add('visible');
+            } else {
+                marker.classList.remove('visible');
+            }
+        });
     }
     
     getFilteredSessions() {
@@ -345,23 +425,40 @@ class TalkShowApp {
             .filter(Boolean)
             .sort();
         
-        // Generate time markers for every few hours/days depending on the span
+        // Generate time markers every 30 minutes
         const markers = [];
         if (allTimes.length > 0) {
             const start = new Date(allTimes[0]);
             const end = new Date(allTimes[allTimes.length - 1]);
-            const span = end - start;
             
-            // Create markers based on time span
-            const interval = span > 7 * 24 * 60 * 60 * 1000 ? 24 * 60 * 60 * 1000 : 6 * 60 * 60 * 1000; // 1 day or 6 hours
+            // 从整点或半点开始，对齐到30分钟间隔
+            const alignedStart = new Date(start);
+            alignedStart.setMinutes(Math.floor(alignedStart.getMinutes() / 30) * 30, 0, 0);
             
-            for (let time = start.getTime(); time <= end.getTime(); time += interval) {
+            // 确保覆盖到结束时间之后
+            const alignedEnd = new Date(end);
+            alignedEnd.setMinutes(Math.ceil(alignedEnd.getMinutes() / 30) * 30, 0, 0);
+            
+            let lastDate = '';
+            
+            // 每30分钟生成一个时间标记
+            for (let time = alignedStart.getTime(); time <= alignedEnd.getTime(); time += 30 * 60 * 1000) {
                 const date = new Date(time);
+                const currentDate = this.formatDate(date.toISOString());
+                const isNewDay = currentDate !== lastDate;
+                
                 markers.push({
                     time: date.toISOString(),
-                    date: this.formatDate(date.toISOString()),
-                    time: this.formatTime(date.toISOString())
+                    date: currentDate,
+                    timeDisplay: this.formatTime(date.toISOString()),
+                    isHour: date.getMinutes() === 0, // 标记整点
+                    isNewDay: isNewDay, // 标记新的一天
+                    showDate: isNewDay && date.getHours() === 0 && date.getMinutes() === 0 // 只在00:00显示日期
                 });
+                
+                if (isNewDay) {
+                    lastDate = currentDate;
+                }
             }
         }
         
@@ -462,3 +559,5 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Global functions for button clicks
 window.app = null;
+
+// 清理：移除了弹窗相关代码，现在使用链接跳转

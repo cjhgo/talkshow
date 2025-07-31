@@ -36,7 +36,14 @@ app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
 @app.get("/")
 async def root():
     """Serve the main frontend page."""
-    return HTMLResponse(content="""
+    try:
+        # 读取HTML文件
+        html_path = Path(__file__).parent / "static" / "index.html"
+        if html_path.exists():
+            return HTMLResponse(content=html_path.read_text(encoding='utf-8'))
+        else:
+            # 如果文件不存在，返回简单的HTML
+            return HTMLResponse(content="""
     <!DOCTYPE html>
     <html>
     <head>
@@ -51,7 +58,9 @@ async def root():
         <script src="/static/script.js"></script>
     </body>
     </html>
-    """)
+            """)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load page: {str(e)}")
 
 
 @app.get("/api/sessions", response_model=List[Dict[str, Any]])
@@ -234,6 +243,166 @@ async def get_timeline():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to generate timeline: {str(e)}")
+
+
+@app.get("/view/{filename}")
+async def view_markdown(filename: str):
+    """View markdown content as a rendered HTML page."""
+    try:
+        # 解码URL编码的文件名
+        from urllib.parse import unquote
+        decoded_filename = unquote(filename)
+        
+        # 构建MD文件路径
+        md_path = Path("history") / decoded_filename
+        
+        if not md_path.exists():
+            raise HTTPException(status_code=404, detail=f"Markdown file not found: {decoded_filename}")
+        
+        # 读取文件内容
+        content = md_path.read_text(encoding='utf-8')
+        
+        # 生成HTML页面
+        html_content = f"""
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{decoded_filename} - TalkShow</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Markdown 渲染器 -->
+    <script src="https://cdn.jsdelivr.net/npm/showdown@2.1.0/dist/showdown.min.js"></script>
+    <!-- 代码高亮 -->
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism.min.css">
+    <style>
+        .md-viewer {{
+            max-width: 1000px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }}
+        .md-header {{
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 1rem;
+            margin-bottom: 2rem;
+        }}
+        .md-header h1 {{
+            margin: 0;
+            color: #2c3e50;
+        }}
+        .back-link {{
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }}
+        .back-link:hover {{
+            text-decoration: underline;
+        }}
+        body {{
+            background: #f5f5f5;
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }}
+    </style>
+</head>
+<body>
+    <div class="md-viewer">
+        <a href="/" class="back-link">← 返回时间轴</a>
+        <div class="md-header">
+            <h1>📄 {decoded_filename}</h1>
+        </div>
+        <div id="md-content">
+            <div style="text-align: center; padding: 2rem; color: #666;">正在渲染 Markdown 内容...</div>
+        </div>
+    </div>
+    
+    <script>
+        // 渲染Markdown内容
+        document.addEventListener('DOMContentLoaded', function() {{
+            const content = {repr(content)};
+            const mdContent = document.getElementById('md-content');
+            
+            if (typeof showdown !== 'undefined') {{
+                try {{
+                    const converter = new showdown.Converter({{
+                        tables: true,
+                        tasklists: true,
+                        strikethrough: true,
+                        emoji: true,
+                        headerLevelStart: 1,
+                        simplifiedAutoLink: true,
+                        openLinksInNewWindow: true,
+                        backslashEscapesHTMLTags: true
+                    }});
+                    
+                    const htmlContent = converter.makeHtml(content);
+                    mdContent.innerHTML = htmlContent;
+                    
+                    // 使用Prism.js高亮代码块
+                    if (typeof Prism !== 'undefined') {{
+                        setTimeout(() => {{
+                            Prism.highlightAllUnder(mdContent);
+                        }}, 100);
+                    }}
+                    
+                    console.log('Markdown rendered successfully');
+                }} catch (error) {{
+                    console.error('Markdown rendering error:', error);
+                    mdContent.innerHTML = '<pre style="white-space: pre-wrap; font-family: monospace;">' + 
+                                         content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+                }}
+            }} else {{
+                mdContent.innerHTML = '<pre style="white-space: pre-wrap; font-family: monospace;">' + 
+                                     content.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</pre>';
+            }}
+        }});
+    </script>
+</body>
+</html>
+        """
+        
+        return HTMLResponse(content=html_content)
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to render markdown: {str(e)}")
+
+
+@app.get("/api/markdown/{filename}")
+async def get_markdown_content(filename: str):
+    """Get original markdown content of a chat session file."""
+    try:
+        # 解码URL编码的文件名
+        from urllib.parse import unquote
+        decoded_filename = unquote(filename)
+        
+        # 构建MD文件路径
+        md_path = Path("history") / decoded_filename
+        
+        if not md_path.exists():
+            raise HTTPException(status_code=404, detail=f"Markdown file not found: {decoded_filename}")
+        
+        # 读取文件内容
+        content = md_path.read_text(encoding='utf-8')
+        
+        return {
+            "filename": decoded_filename,
+            "content": content,
+            "size": len(content)
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read markdown file: {str(e)}")
 
 
 if __name__ == "__main__":
