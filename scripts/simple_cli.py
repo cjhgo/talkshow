@@ -20,6 +20,9 @@ def cmd_parse(args):
     """Parse command: parse MD files from directory."""
     print(f"📁 Parsing files from '{args.directory}'...")
     
+    # Import here to avoid circular imports
+    from talkshow import ConfigManager, RuleSummarizer, LLMSummarizer
+    
     parser = MDParser()
     sessions = parser.parse_directory(args.directory)
     
@@ -28,6 +31,64 @@ def cmd_parse(args):
         return 1
     
     print(f"✅ Found {len(sessions)} valid chat sessions")
+    
+    # Generate summaries if requested
+    if args.summarize:
+        print("📝 Generating summaries...")
+        
+        rule_summarizer = RuleSummarizer()
+        llm_summarizer = None
+        
+        # Try to initialize LLM summarizer if requested
+        if args.use_llm:
+            try:
+                config_manager = ConfigManager()
+                llm_summarizer = LLMSummarizer(config_manager)
+
+                llm_config = config_manager.get_llm_config()
+    
+                print("\n📋 LLM Configuration:")
+                for key, value in llm_config.items():
+                    if key == 'api_key':
+                        print(f"  {key}: {value[:10]}...{value[-4:] if value else 'None'}")
+                    else:
+                        print(f"  {key}: {value}")
+                
+                if llm_summarizer.test_connection():
+                    print("🤖 Using LLM summarization")
+                else:
+                    print("❌ LLM connection failed, falling back to rule-based")
+                    llm_summarizer = None
+            except Exception as e:
+                print(f"❌ LLM initialization failed: {e}")
+                print("Using rule-based summarization")
+                llm_summarizer = None
+        
+        # Generate summaries
+        for session in sessions[:3]:
+            for qa_pair in session.qa_pairs:
+                if llm_summarizer:
+                    try:
+                        # print(f"🤖 LLM Summary: {qa_pair.question} {qa_pair.answer}")
+                        q_summary, a_summary = llm_summarizer.summarize_both(
+                            qa_pair.question, qa_pair.answer
+                        )
+                        qa_pair.question_summary = q_summary
+                        qa_pair.answer_summary = a_summary
+                        # print(f"🤖 LLM Summary: {q_summary} {a_summary}")
+                    except Exception:
+                        # Fallback to rule-based
+                        q_summary, a_summary = rule_summarizer.summarize_both(
+                            qa_pair.question, qa_pair.answer
+                        )
+                        qa_pair.question_summary = q_summary
+                        qa_pair.answer_summary = a_summary
+                else:
+                    q_summary, a_summary = rule_summarizer.summarize_both(
+                        qa_pair.question, qa_pair.answer
+                    )
+                    qa_pair.question_summary = q_summary
+                    qa_pair.answer_summary = a_summary
     
     if args.output:
         storage = JSONStorage(args.output)
@@ -133,6 +194,8 @@ def main():
     parse_parser = subparsers.add_parser("parse", help="Parse MD files from directory")
     parse_parser.add_argument("directory", help="Directory containing MD files")
     parse_parser.add_argument("-o", "--output", help="Output JSON file")
+    parse_parser.add_argument("--summarize", action="store_true", help="Generate summaries")
+    parse_parser.add_argument("--use-llm", action="store_true", help="Use LLM for summarization (requires API key)")
     
     # List command
     list_parser = subparsers.add_parser("list", help="List all stored sessions")

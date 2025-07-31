@@ -24,7 +24,8 @@ summarizer:
   # LLM summarizer settings (for future use)
   llm:
     provider: "openai"
-    model: "gpt-3.5-turbo"
+    model: "moonshot/kimi-k2-0711-preview"
+    api_key: "sk-your-api-key-here"  # 可以直接在配置文件中设置
     max_tokens: 150
     temperature: 0.3
 
