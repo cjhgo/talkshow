@@ -6,10 +6,10 @@ TalkShow 是一个专门用于分析和可视化 SpecStory 插件生成的聊天
 
 - **智能解析**：自动解析 SpecStory 生成的 Markdown 聊天记录
 - **内容摘要**：支持基于规则和 LLM 的智能摘要生成
+- **可视化界面**：现代化 Web 时间轴 + 命令行工具双重体验
 - **灵活配置**：多种配置方式，环境变量、配置文件或混合模式
 - **优雅降级**：无 API 配置时自动使用规则摘要
 - **灵活存储**：支持 JSON 和 SQLite 存储
-- **多种展示**：CLI 和 Web 界面双重体验
 - **渐进式架构**：模块化设计，支持逐步扩展功能
 
 ## 🚀 快速开始
@@ -85,19 +85,30 @@ talkshow/
 │   │   ├── md_parser.py        # 主解析器
 │   │   └── time_extractor.py   # 时间提取器
 │   ├── summarizer/              # 摘要生成
-│   │   └── rule_summarizer.py  # 基于规则的摘要器
-│   └── storage/                 # 数据存储
-│       └── json_storage.py     # JSON 存储实现
-├── scripts/                     # 演示脚本
-│   └── demo_parser.py          # 解析演示脚本
+│   │   ├── rule_summarizer.py  # 基于规则的摘要器
+│   │   └── llm_summarizer.py   # LLM 智能摘要器
+│   ├── storage/                 # 数据存储
+│   │   └── json_storage.py     # JSON 存储实现
+│   ├── config/                  # 配置管理
+│   │   └── config_manager.py   # 统一配置管理
+│   └── web/                     # Web 前端
+│       ├── app.py              # FastAPI 应用
+│       └── static/             # 前端资源
+│           ├── style.css       # 样式文件
+│           └── script.js       # 前端逻辑
+├── scripts/                     # 脚本工具
+│   ├── demo_parser.py          # 解析演示脚本
+│   ├── simple_cli.py           # CLI 工具
+│   └── web_server.py           # Web 服务器启动
 ├── tests/                       # 测试套件
 │   ├── test_parser.py          # 解析器测试
 │   ├── test_storage.py         # 存储测试
-│   └── test_summarizer.py      # 摘要器测试
+│   ├── test_summarizer.py      # 摘要器测试
+│   └── test_llm_summarizer.py  # LLM 摘要器测试
 ├── config/                      # 配置文件
 │   └── default.yaml            # 默认配置
 └── data/                        # 生成的数据
-    └── parsed_sessions.json    # 解析结果
+    └── web_sessions.json       # Web 端数据
 ```
 
 ## 📅 开发阶段完成情况
@@ -121,10 +132,10 @@ talkshow/
 - [x] 智能摘要生成 (中英文支持)
 - [x] 错误处理和降级机制
 
-### 🚧 Phase 4: Web 前端 - 待开发
-- [ ] FastAPI 后端 API
-- [ ] 时间轴表格可视化界面
-- [ ] 交互式聊天记录浏览
+### ✅ Phase 4: Web 前端 - 已完成
+- [x] FastAPI 后端 API (完整 RESTful 接口)
+- [x] 时间轴表格可视化界面 (滑动展示设计)
+- [x] 交互式聊天记录浏览 (搜索、筛选、实时加载)
 
 ### 🚧 Phase 5: 高级功能 - 待开发
 - [ ] SQLite 存储支持
@@ -137,10 +148,11 @@ talkshow/
 - **核心语言**: Python 3.8+
 - **测试框架**: pytest (32个测试)
 - **LLM 集成**: LiteLLM + Moonshot AI
+- **Web 后端**: FastAPI + Uvicorn (异步高性能)
+- **Web 前端**: 原生 HTML/CSS/JS (轻量响应式)
 - **数据存储**: JSON (当前), SQLite (计划) 
 - **配置管理**: YAML + 环境变量
 - **CLI 工具**: Click + Rich (增强体验)
-- **未来扩展**: FastAPI + Web 前端
 
 ## 📖 使用示例
 
@@ -165,6 +177,28 @@ python scripts/simple_cli.py list
 # 查看特定会话详情
 python scripts/simple_cli.py show filename.md
 ```
+
+### Web 前端使用
+
+```bash
+# 1. 生成 Web 数据文件
+python scripts/simple_cli.py parse history --summarize -o data/web_sessions.json
+
+# 2. 启动 Web 服务器
+python scripts/web_server.py
+
+# 3. 访问浏览器
+# 打开 http://localhost:8000 查看时间轴界面
+# API 文档：http://localhost:8000/docs
+```
+
+**Web 功能特性：**
+- 📊 **统计面板**：显示会话数、Q&A对话、摘要等统计信息
+- 🔍 **实时搜索**：根据主题或内容筛选会话
+- ⏰ **时间筛选**：按时间范围过滤会话
+- 📋 **时间轴表格**：按计划设计的滑动展示界面
+- 💬 **Q&A 浏览**：查看每个会话的详细对话内容
+- 📤 **数据导出**：支持导出 JSON 格式数据
 
 ### Python API 使用
 
@@ -296,5 +330,5 @@ TalkShow 的使命就是让这些珍贵的思维过程可见、可分析、可�
 ✅ **Phase 1**: 核心数据分析 (MVP)  
 ✅ **Phase 2**: CLI 工具增强  
 ✅ **Phase 3**: LLM 智能集成  
-🚧 **Phase 4**: Web 前端 (待开发)  
+✅ **Phase 4**: Web 前端可视化 🆕  
 🚧 **Phase 5**: 高级功能 (待开发)
