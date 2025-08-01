@@ -36,8 +36,11 @@ storage = JSONStorage(str(storage_path))
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"
-static_dir.mkdir(exist_ok=True)
-app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+# Don't create directory - it should already exist in the package
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=str(static_dir)), name="static")
+else:
+    print(f"Warning: Static directory not found at {static_dir}")
 
 
 @app.get("/")

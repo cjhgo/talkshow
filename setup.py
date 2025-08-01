@@ -13,7 +13,7 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="talkshow",
-    version="0.1.1",
+    version="0.1.3",
     author="TalkShow Team",
     author_email="team@talkshow.dev",
     description="Chat History Analysis and Visualization Tool",
@@ -71,7 +71,12 @@ setup(
     },
     include_package_data=True,
     package_data={
-        "talkshow": ["config/*.yaml"],
+        "talkshow": [
+            "config/*.yaml",
+            "web/static/*.html",
+            "web/static/*.css",
+            "web/static/*.js",
+        ],
     },
     keywords="chat, history, analysis, visualization, markdown, llm",
     zip_safe=False,

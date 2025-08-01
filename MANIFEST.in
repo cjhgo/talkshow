@@ -3,6 +3,7 @@ include requirements.txt
 include MANIFEST.in
 include talkshow/config/*.yaml
 recursive-include talkshow *.py
+recursive-include talkshow/web/static *.html *.css *.js
 recursive-include tests *.py
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co] 
