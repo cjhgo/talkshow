@@ -2,7 +2,7 @@
 
 import os
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Optional, Tuple
 from pathlib import Path
 
@@ -33,20 +33,23 @@ class MDParser:
         filename = os.path.basename(file_path)
         file_size = len(content.encode('utf-8'))
         
-        # Extract QA pairs
-        qa_pairs = self._extract_qa_pairs(content)
-        if not qa_pairs:
-            print(f"No QA pairs found in {filename}")
-            return None
-        
-        # Extract creation time from first Assistant response
-        ctime = self._extract_creation_time(qa_pairs)
+        # Extract creation time from filename (converted to Shanghai timezone)
+        ctime = self._extract_creation_time_from_filename(filename)
         if not ctime:
             # Fallback to file modification time
             try:
                 ctime = datetime.fromtimestamp(os.path.getmtime(file_path))
+                # Make timezone-aware if it's naive
+                if ctime.tzinfo is None:
+                    ctime = ctime.replace(tzinfo=timezone.utc)
             except OSError:
-                ctime = datetime.now()
+                ctime = datetime.now(timezone.utc)
+        
+        # Extract QA pairs with ctime for fallback
+        qa_pairs = self._extract_qa_pairs(content, ctime)
+        if not qa_pairs:
+            print(f"No QA pairs found in {filename}")
+            return None
         
         # Create session metadata
         meta = SessionMeta.from_filename(
@@ -58,7 +61,7 @@ class MDParser:
         
         return ChatSession(meta=meta, qa_pairs=qa_pairs)
     
-    def _extract_qa_pairs(self, content: str) -> List[QAPair]:
+    def _extract_qa_pairs(self, content: str, ctime: datetime) -> List[QAPair]:
         """Extract Question-Answer pairs from markdown content."""
         qa_pairs = []
         
@@ -74,7 +77,7 @@ class MDParser:
             if section_type == 'user':
                 # If we have collected assistant sections, process them
                 if current_question and assistant_sections:
-                    qa_pair = self._create_qa_pair(current_question, assistant_sections)
+                    qa_pair = self._create_qa_pair(current_question, assistant_sections, ctime)
                     if qa_pair:
                         qa_pairs.append(qa_pair)
                     assistant_sections = []
@@ -93,13 +96,13 @@ class MDParser:
         
         # Process final QA pair if exists
         if current_question and assistant_sections:
-            qa_pair = self._create_qa_pair(current_question, assistant_sections)
+            qa_pair = self._create_qa_pair(current_question, assistant_sections, ctime)
             if qa_pair:
                 qa_pairs.append(qa_pair)
         
         return qa_pairs
     
-    def _create_qa_pair(self, question: str, assistant_sections: List[str]) -> Optional[QAPair]:
+    def _create_qa_pair(self, question: str, assistant_sections: List[str], ctime: datetime) -> Optional[QAPair]:
         """Create a QA pair from question and multiple assistant sections."""
         if not question or not assistant_sections:
             return None
@@ -116,6 +119,14 @@ class MDParser:
         if not timestamp:
             # Fallback: try to extract any timestamp from the combined sections
             timestamp = self.time_extractor.extract_first_timestamp(combined_content)
+        
+        # If still no timestamp found, use ctime as fallback
+        if not timestamp:
+            timestamp = ctime
+        else:
+            # Ensure timestamp is timezone-aware
+            if timestamp.tzinfo is None:
+                timestamp = timestamp.replace(tzinfo=timezone.utc)
         
         if answer_content:  # Only create QA pair if we have actual answer content
             return QAPair(
@@ -220,6 +231,33 @@ class MDParser:
             cleaned_lines.append(line)
         
         return '\n'.join(cleaned_lines).strip()
+    
+    def _extract_creation_time_from_filename(self, filename: str) -> Optional[datetime]:
+        """Extract creation time from filename, converting UTC to Shanghai timezone."""
+        import re
+        from datetime import datetime, timezone, timedelta
+        
+        # Try to match both patterns:
+        # 1. YYYY-MM-DD_HH-mmZ-description.md (with Z)
+        # 2. YYYY-MM-DD_HH-mm-description.md (without Z)
+        time_match = re.search(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})(?:Z)?-', filename)
+        
+        if time_match:
+            try:
+                # Parse the UTC time string (YYYY-MM-DD_HH-mm)
+                utc_time_str = time_match.group(1)
+                utc_dt = datetime.strptime(utc_time_str, '%Y-%m-%d_%H-%M')
+                # Set timezone to UTC
+                utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+                # Convert to Shanghai timezone (UTC+8)
+                shanghai_tz = timezone(timedelta(hours=8))
+                shanghai_dt = utc_dt.astimezone(shanghai_tz)
+                
+                return shanghai_dt
+            except ValueError:
+                return None
+        
+        return None
     
     def _extract_creation_time(self, qa_pairs: List[QAPair]) -> Optional[datetime]:
         """Extract creation time from the first QA pair with timestamp."""

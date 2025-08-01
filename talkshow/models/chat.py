@@ -1,7 +1,7 @@
 """Chat data models for TalkShow."""
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 import re
 
@@ -41,10 +41,35 @@ class SessionMeta:
     
     @classmethod
     def from_filename(cls, filename: str, ctime: datetime, file_size: int, qa_count: int) -> 'SessionMeta':
-        """Create SessionMeta from filename, extracting theme."""
-        # Extract theme from filename pattern: YYYY-MM-DD_HH-mmZ-description.md
-        theme_match = re.search(r'\d{4}-\d{2}-\d{2}_\d{2}-\d{2}Z-(.+)\.md$', filename)
-        theme = theme_match.group(1) if theme_match else filename
+        """Create SessionMeta from filename, extracting theme and converting timezone."""
+        # Extract time and theme from filename pattern: 
+        # 1. YYYY-MM-DD_HH-mmZ-description.md (with Z)
+        # 2. YYYY-MM-DD_HH-mm-description.md (without Z)
+        time_theme_match = re.search(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})(?:Z)?-(.+)\.md$', filename)
+        
+        if time_theme_match:
+            # Extract UTC time from filename
+            utc_time_str = time_theme_match.group(1)
+            theme = time_theme_match.group(2)
+            
+            # Parse UTC time and convert to Shanghai timezone
+            try:
+                # Parse the UTC time string (YYYY-MM-DD_HH-mm)
+                utc_dt = datetime.strptime(utc_time_str, '%Y-%m-%d_%H-%M')
+                # Set timezone to UTC
+                utc_dt = utc_dt.replace(tzinfo=timezone.utc)
+                # Convert to Shanghai timezone (UTC+8)
+                shanghai_tz = timezone(timedelta(hours=8))
+                shanghai_dt = utc_dt.astimezone(shanghai_tz)
+                
+                # Use the converted time as ctime
+                ctime = shanghai_dt
+            except ValueError:
+                # Fallback to provided ctime if parsing fails
+                theme = filename
+        else:
+            # Fallback if filename doesn't match expected pattern
+            theme = filename
         
         return cls(
             filename=filename,

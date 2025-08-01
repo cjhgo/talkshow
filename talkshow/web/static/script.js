@@ -276,7 +276,7 @@ class TalkShowApp {
                     <div class="daily-question">
                         <div class="question-summary">${question.summary}</div>
                         <div class="question-time">${question.timeStr}</div>
-                        ${question.sessionFilename ? `<div class="question-theme"><a href="/view/${encodeURIComponent(question.sessionFilename)}" target="_blank" class="theme-link">${question.sessionTheme || question.sessionFilename}</a></div>` : ''}
+                        ${question.sessionTheme ? `<div class="question-theme"><a href="/view/${encodeURIComponent(question.sessionTheme)}" target="_blank" class="theme-link">${question.sessionTheme}</a></div>` : ''}
                     </div>
                 `;
             });
