@@ -25,69 +25,26 @@ class TalkShowApp {
     
     async loadData() {
         try {
-            // Load sessions, stats, and timeline in parallel
-            const [sessionsResponse, statsResponse] = await Promise.all([
-                fetch('/api/sessions'),
+            // Load all data needed for daily insights in a single request
+            const [insightsResponse, statsResponse] = await Promise.all([
+                fetch('/api/sessions/insights'),  // Use optimized endpoint
                 fetch('/api/stats')
             ]);
             
-            if (!sessionsResponse.ok || !statsResponse.ok) {
+            if (!insightsResponse.ok || !statsResponse.ok) {
                 throw new Error('Failed to fetch data from API');
             }
             
-            const sessionsData = await sessionsResponse.json();
+            const insightsData = await insightsResponse.json();
             this.stats = await statsResponse.json();
             
-            // 转换数据结构：从对象转换为数组，并获取完整的会话数据
-            this.sessions = [];
-            for (const session of Object.values(sessionsData)) {
-                try {
-                    // 获取完整的会话数据（包含 qa_pairs）
-                    const sessionResponse = await fetch(`/api/sessions/${encodeURIComponent(session.filename)}`);
-                    if (sessionResponse.ok) {
-                        const fullSession = await sessionResponse.json();
-                        this.sessions.push({
-                            filename: fullSession.filename,
-                            theme: fullSession.theme,
-                            created_time: fullSession.created_time,
-                            qa_count: fullSession.qa_count,
-                            has_summaries: fullSession.has_summaries,
-                            first_question: session.first_question,
-                            timestamp: session.timestamp,
-                            qa_pairs: fullSession.qa_pairs || []
-                        });
-                    } else {
-                        // 如果获取完整数据失败，使用基本数据
-                        this.sessions.push({
-                            filename: session.filename,
-                            theme: session.theme,
-                            created_time: session.created_time,
-                            qa_count: session.qa_count,
-                            has_summaries: session.has_summaries,
-                            first_question: session.first_question,
-                            timestamp: session.timestamp,
-                            qa_pairs: []
-                        });
-                    }
-                } catch (error) {
-                    console.warn(`Failed to load full session data for ${session.filename}:`, error);
-                    // 使用基本数据
-                    this.sessions.push({
-                        filename: session.filename,
-                        theme: session.theme,
-                        created_time: session.created_time,
-                        qa_count: session.qa_count,
-                        has_summaries: session.has_summaries,
-                        first_question: session.first_question,
-                        timestamp: session.timestamp,
-                        qa_pairs: []
-                    });
-                }
-            }
+            // Use the insights data directly - it already contains qa_pairs
+            this.sessions = insightsData;
             
             console.log('Loaded data:', {
                 sessions: this.sessions.length,
-                stats: this.stats
+                stats: this.stats,
+                totalApiCalls: 2  // Only 2 API calls instead of N+1!
             });
             
         } catch (error) {
@@ -127,7 +84,8 @@ class TalkShowApp {
                         original: question,
                         summary: qSummary,
                         sessionTheme: session.theme,
-                        sessionFilename: session.filename
+                        sessionFilename: session.filename,
+                        markdownFilename: session.markdown_filename  // 新增字段
                     });
                 }
             }
@@ -276,7 +234,7 @@ class TalkShowApp {
                     <div class="daily-question">
                         <div class="question-summary">${question.summary}</div>
                         <div class="question-time">${question.timeStr}</div>
-                        ${question.sessionTheme ? `<div class="question-theme"><a href="/view/${encodeURIComponent(question.sessionTheme)}" target="_blank" class="theme-link">${question.sessionTheme}</a></div>` : ''}
+                        ${question.markdownFilename ? `<div class="question-theme"><a href="/view/${encodeURIComponent(question.markdownFilename)}" target="_blank" class="theme-link">${question.sessionTheme || question.markdownFilename}</a></div>` : ''}
                     </div>
                 `;
             });

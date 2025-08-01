@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from talkshow.parser.md_parser import MDParser
 from talkshow.storage.json_storage import JSONStorage
 from talkshow.summarizer.rule_summarizer import RuleSummarizer
+from talkshow.config.manager import ConfigManager
 
 
 def main():
@@ -26,12 +27,13 @@ def main():
     print("🎭 TalkShow Demo - Chat History Analyzer")
     print("=" * 50)
     
-    # Configuration
-    history_dir = "history"
-    storage_path = "data/parsed_sessions.json"
+    # Initialize configuration manager
+    config_manager = ConfigManager()
+    history_dir = config_manager.get_history_dir()
+    storage_path = config_manager.get_data_file_path()
     
     # Check if history directory exists
-    if not Path(history_dir).exists():
+    if not history_dir.exists():
         print(f"❌ History directory '{history_dir}' not found!")
         print("Please make sure you're running this script from the project root.")
         return 1
@@ -39,12 +41,12 @@ def main():
     # Initialize components
     print("🔧 Initializing components...")
     parser = MDParser()
-    storage = JSONStorage(storage_path)
+    storage = JSONStorage(str(storage_path))
     summarizer = RuleSummarizer()
     
     # Parse all MD files
     print(f"📁 Parsing files from '{history_dir}' directory...")
-    sessions = parser.parse_directory(history_dir)
+    sessions = parser.parse_directory(str(history_dir))
     
     if not sessions:
         print("❌ No valid sessions found!")

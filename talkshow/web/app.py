@@ -12,6 +12,7 @@ import json
 import os
 import yaml
 from pathlib import Path
+import re # Added for markdown filename generation
 
 # Import TalkShow components
 from ..storage.json_storage import JSONStorage
@@ -77,9 +78,14 @@ async def get_sessions():
         
         session_list = []
         for session in sessions:
+            # 直接使用会话的filename作为markdown文件名
+            # 因为session.meta.filename应该就是实际的Markdown文件名
+            markdown_filename = session.meta.filename
+            
             session_data = {
                 "filename": session.meta.filename,
                 "theme": session.meta.theme,
+                "markdown_filename": markdown_filename,  # 使用原始filename
                 "created_time": session.meta.ctime.isoformat() if session.meta.ctime else None,
                 "qa_count": len(session.qa_pairs),
                 "has_summaries": any(qa.question_summary or qa.answer_summary for qa in session.qa_pairs),
@@ -95,6 +101,44 @@ async def get_sessions():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load sessions: {str(e)}")
+
+
+@app.get("/api/sessions/insights", response_model=List[Dict[str, Any]])
+async def get_sessions_insights():
+    """Get all sessions with QA pairs optimized for daily insights view.
+    
+    This endpoint returns all the data needed for the homepage in a single request,
+    avoiding the N+1 query problem where each session requires a separate API call.
+    """
+    try:
+        sessions = storage.load_all_sessions()
+        
+        insights_data = []
+        for session in sessions:
+            # Only include the data needed for daily insights
+            qa_pairs_data = []
+            for qa in session.qa_pairs:
+                # Only include fields needed for the daily insights view
+                qa_data = {
+                    "question": qa.question,
+                    "question_summary": qa.question_summary,
+                    "timestamp": qa.timestamp.isoformat() if qa.timestamp else None
+                }
+                qa_pairs_data.append(qa_data)
+            
+            session_data = {
+                "filename": session.meta.filename,
+                "theme": session.meta.theme,
+                "markdown_filename": session.meta.filename,  # Using filename as markdown filename
+                "created_time": session.meta.ctime.isoformat() if session.meta.ctime else None,
+                "qa_pairs": qa_pairs_data  # Include only necessary QA data
+            }
+            insights_data.append(session_data)
+        
+        return insights_data
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load session insights: {str(e)}")
 
 
 @app.get("/api/sessions/{filename}", response_model=Dict[str, Any])

@@ -13,13 +13,19 @@ with open("requirements.txt", "r", encoding="utf-8") as fh:
 
 setup(
     name="talkshow",
-    version="0.1.0",
+    version="0.1.1",
     author="TalkShow Team",
-    author_email="",
+    author_email="team@talkshow.dev",
     description="Chat History Analysis and Visualization Tool",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="",
+    url="https://github.com/cjhgo/talkshow",
+    project_urls={
+        "Bug Reports": "https://github.com/cjhgo/talkshow/issues",
+        "Source": "https://github.com/cjhgo/talkshow",
+        "Documentation": "https://github.com/cjhgo/talkshow#readme",
+    },
+    license="MIT",
     packages=find_packages(),
     classifiers=[
         "Development Status :: 3 - Alpha",
@@ -34,6 +40,8 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Topic :: Software Development :: Documentation",
         "Topic :: Text Processing :: Markup",
+        "Topic :: Scientific/Engineering :: Information Analysis",
+        "Topic :: Text Processing :: Linguistic",
     ],
     python_requires=">=3.8",
     install_requires=requirements,
@@ -53,6 +61,7 @@ setup(
             "click>=8.0.0",
             "rich>=13.0.0",
             "pyyaml>=6.0.0",
+            "psutil>=5.9.0",
         ]
     },
     entry_points={
@@ -64,4 +73,6 @@ setup(
     package_data={
         "talkshow": ["config/*.yaml"],
     },
+    keywords="chat, history, analysis, visualization, markdown, llm",
+    zip_safe=False,
 )

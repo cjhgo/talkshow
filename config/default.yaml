@@ -4,7 +4,8 @@
 # Parser settings
 parser:
   # Default history directory (relative to project root)
-  history_directory: ".specstory/history"
+  # history_directory: ".specstory/history"
+  history_directory: "history"
   
   # File patterns to include
   include_patterns:
@@ -41,7 +42,8 @@ storage:
   
   # JSON storage settings
   json:
-    file_path: ".specstory/data/sessions.json"
+    # file_path: ".specstory/data/sessions.json"
+    file_path: "data/sessions.json"
     backup_enabled: true
     backup_interval: "daily"
   

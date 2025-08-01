@@ -2,6 +2,7 @@
 
 import pytest
 from talkshow.summarizer.rule_summarizer import RuleSummarizer
+from talkshow.models.chat import QAPair
 
 
 class TestRuleSummarizer:
@@ -11,6 +12,36 @@ class TestRuleSummarizer:
     def summarizer(self):
         """Create a RuleSummarizer instance."""
         return RuleSummarizer(max_question_length=20, max_answer_length=80)
+    
+    def test_summarize_qa_pair(self, summarizer):
+        """Test summarize_qa method with a QAPair object."""
+        qa_pair = QAPair(
+            question="This is a very long question that should be summarized",
+            answer="This is a very long answer that contains multiple sentences and should be summarized to fit within the length limit"
+        )
+        
+        result = summarizer.summarize_qa(qa_pair)
+        
+        assert result is True
+        assert qa_pair.question_summary is not None
+        assert qa_pair.answer_summary is not None
+        assert len(qa_pair.question_summary) <= 20
+        assert len(qa_pair.answer_summary) <= 80
+    
+    def test_summarize_qa_with_existing_summaries(self, summarizer):
+        """Test summarize_qa method when summaries already exist."""
+        qa_pair = QAPair(
+            question="Short question",
+            answer="Short answer"
+        )
+        qa_pair.question_summary = "Existing summary"
+        qa_pair.answer_summary = "Existing answer summary"
+        
+        result = summarizer.summarize_qa(qa_pair)
+        
+        assert result is True
+        assert qa_pair.question_summary == "Existing summary"
+        assert qa_pair.answer_summary == "Existing answer summary"
     
     def test_short_question_no_summary(self, summarizer):
         """Test that short questions don't get summarized."""

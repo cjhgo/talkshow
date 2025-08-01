@@ -2,6 +2,7 @@
 
 import re
 from typing import Optional
+from ..models.chat import QAPair
 
 
 class RuleSummarizer:
@@ -16,6 +17,29 @@ class RuleSummarizer:
         """
         self.max_question_length = max_question_length
         self.max_answer_length = max_answer_length
+    
+    def summarize_qa(self, qa_pair: QAPair) -> bool:
+        """Summarize both question and answer in a Q&A pair.
+        
+        Args:
+            qa_pair: QAPair object to summarize
+            
+        Returns:
+            bool: True if summarization was successful, False otherwise
+        """
+        try:
+            # Summarize question if not already summarized
+            if not qa_pair.question_summary:
+                qa_pair.question_summary = self.summarize_question(qa_pair.question)
+            
+            # Summarize answer if not already summarized
+            if not qa_pair.answer_summary:
+                qa_pair.answer_summary = self.summarize_answer(qa_pair.answer)
+            
+            return True
+        except Exception as e:
+            print(f"Error summarizing Q&A: {e}")
+            return False
     
     def summarize_question(self, question: str) -> Optional[str]:
         """Summarize a question using rule-based approach."""

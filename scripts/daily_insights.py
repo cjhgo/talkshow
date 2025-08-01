@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from talkshow.storage.json_storage import JSONStorage
+from talkshow.config.manager import ConfigManager
 from rich.console import Console
 from rich.table import Table
 from rich import box
@@ -100,13 +101,10 @@ def print_daily_insights(daily_questions):
     console.print(stats_text, style="bold blue")
     console.print()
     
-    # 为每一天创建一个表格
+    # 为每一天创建表格
     for date in sorted_dates:
         questions = daily_questions[date]
         
-        if not questions:
-            continue
-            
         # 创建当天的表格
         table = Table(
             title=f"📅 {date} ({len(questions)} 个问题)",
@@ -171,12 +169,13 @@ def main():
     console.print(f"🕒 {datetime.now()}", style="dim")
     console.print()
     
-    # 尝试从已有的存储加载数据
-    storage_path = "data/parsed_sessions.json"
+    # 初始化配置管理器
+    config_manager = ConfigManager()
+    storage_path = config_manager.get_data_file_path()
     
-    if Path(storage_path).exists():
+    if storage_path.exists():
         console.print(f"📁 从存储加载数据：{storage_path}", style="blue")
-        storage = JSONStorage(storage_path)
+        storage = JSONStorage(str(storage_path))
         sessions = storage.load_all_sessions()
         console.print(f"✅ 加载了 {len(sessions)} 个会话", style="green")
     else:
@@ -184,7 +183,7 @@ def main():
         console.print("💡 请先运行以下命令生成数据：", style="yellow")
         console.print("   python scripts/demo_parser.py")
         console.print("   或")
-        console.print("   python scripts/simple_cli.py parse history -o data/parsed_sessions.json")
+        console.print("   python scripts/simple_cli.py parse history --summarize")
         return
     
     if not sessions:
@@ -200,9 +199,10 @@ def main():
     print_daily_insights(daily_questions)
     
     # 保存 JSON 文件
-    output_file = "data/daily_insights.json"
-    os.makedirs("data", exist_ok=True)
-    save_daily_insights_json(daily_questions, output_file)
+    output_dir = config_manager.get_output_dir()
+    output_file = output_dir / "daily_insights.json"
+    output_file.parent.mkdir(parents=True, exist_ok=True)
+    save_daily_insights_json(daily_questions, str(output_file))
 
 
 if __name__ == "__main__":

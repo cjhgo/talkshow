@@ -14,6 +14,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from talkshow.parser.md_parser import MDParser
 from talkshow.storage.json_storage import JSONStorage
+from talkshow.config.manager import ConfigManager
 
 
 def cmd_parse(args):
@@ -187,6 +188,10 @@ def cmd_stats(args):
 
 def main():
     """Main CLI entry point."""
+    # Initialize configuration manager for default values
+    config_manager = ConfigManager()
+    default_storage = str(config_manager.get_data_file_path())
+    
     parser = argparse.ArgumentParser(description="TalkShow - Chat History Analysis Tool")
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
     
@@ -199,16 +204,16 @@ def main():
     
     # List command
     list_parser = subparsers.add_parser("list", help="List all stored sessions")
-    list_parser.add_argument("-s", "--storage", default="data/parsed_sessions.json", help="Storage JSON file")
+    list_parser.add_argument("-s", "--storage", default=default_storage, help="Storage JSON file")
     
     # Show command
     show_parser = subparsers.add_parser("show", help="Show details of a specific session")
     show_parser.add_argument("filename", help="Filename of the session to show")
-    show_parser.add_argument("-s", "--storage", default="data/parsed_sessions.json", help="Storage JSON file")
+    show_parser.add_argument("-s", "--storage", default=default_storage, help="Storage JSON file")
     
     # Stats command
     stats_parser = subparsers.add_parser("stats", help="Show storage statistics")
-    stats_parser.add_argument("-s", "--storage", default="data/parsed_sessions.json", help="Storage JSON file")
+    stats_parser.add_argument("-s", "--storage", default=default_storage, help="Storage JSON file")
     
     args = parser.parse_args()
     

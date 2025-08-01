@@ -45,25 +45,26 @@ class SessionMeta:
         # Extract time and theme from filename pattern: 
         # 1. YYYY-MM-DD_HH-mmZ-description.md (with Z)
         # 2. YYYY-MM-DD_HH-mm-description.md (without Z)
-        time_theme_match = re.search(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2})(?:Z)?-(.+)\.md$', filename)
+        time_theme_match = re.search(r'(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}Z?)-(.+)\.md$', filename)
         
         if time_theme_match:
             # Extract UTC time from filename
             utc_time_str = time_theme_match.group(1)
             theme = time_theme_match.group(2)
             
-            # Parse UTC time and convert to Shanghai timezone
+            # Remove Z from time string if present
+            if utc_time_str.endswith('Z'):
+                utc_time_str = utc_time_str[:-1]
+            
+            # Parse UTC time and keep it as UTC (don't convert to Shanghai timezone)
             try:
                 # Parse the UTC time string (YYYY-MM-DD_HH-mm)
                 utc_dt = datetime.strptime(utc_time_str, '%Y-%m-%d_%H-%M')
-                # Set timezone to UTC
+                # Set timezone to UTC and keep it as UTC
                 utc_dt = utc_dt.replace(tzinfo=timezone.utc)
-                # Convert to Shanghai timezone (UTC+8)
-                shanghai_tz = timezone(timedelta(hours=8))
-                shanghai_dt = utc_dt.astimezone(shanghai_tz)
                 
-                # Use the converted time as ctime
-                ctime = shanghai_dt
+                # Use the UTC time as ctime (don't convert to Shanghai timezone)
+                ctime = utc_dt
             except ValueError:
                 # Fallback to provided ctime if parsing fails
                 theme = filename
@@ -156,20 +157,39 @@ class ChatSession:
     def from_dict(cls, data: dict) -> 'ChatSession':
         """Create session from dictionary."""
         meta_data = data['meta']
+        
+        # 处理ctime，确保时区一致性
+        ctime_str = meta_data['ctime']
+        if ctime_str:
+            ctime = datetime.fromisoformat(ctime_str)
+            # 如果没有时区信息，假设为UTC
+            if ctime.tzinfo is None:
+                ctime = ctime.replace(tzinfo=timezone.utc)
+        else:
+            ctime = datetime.now(timezone.utc)
+        
         meta = SessionMeta(
             filename=meta_data['filename'],
             theme=meta_data['theme'],
-            ctime=datetime.fromisoformat(meta_data['ctime']),
+            ctime=ctime,
             file_size=meta_data['file_size'],
             qa_count=meta_data['qa_count']
         )
         
         qa_pairs = []
         for qa_data in data['qa_pairs']:
+            # 处理timestamp，确保时区一致性
+            timestamp = None
+            if qa_data['timestamp']:
+                timestamp = datetime.fromisoformat(qa_data['timestamp'])
+                # 如果没有时区信息，假设为UTC
+                if timestamp.tzinfo is None:
+                    timestamp = timestamp.replace(tzinfo=timezone.utc)
+            
             qa = QAPair(
                 question=qa_data['question'],
                 answer=qa_data['answer'],
-                timestamp=datetime.fromisoformat(qa_data['timestamp']) if qa_data['timestamp'] else None,
+                timestamp=timestamp,
                 question_summary=qa_data.get('question_summary'),
                 answer_summary=qa_data.get('answer_summary')
             )

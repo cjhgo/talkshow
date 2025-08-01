@@ -14,17 +14,23 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
+from talkshow.config.manager import ConfigManager
+
 def main():
     """Launch the TalkShow web server."""
     print("🎭 Starting TalkShow Web Server...")
     print("=" * 50)
     
-    # Check if data file exists
-    data_file = project_root / "data" / "web_sessions.json"
+    # Initialize configuration manager
+    config_manager = ConfigManager()
+    data_file = config_manager.get_data_file_path()
+    
     if not data_file.exists():
         print("⚠️  Warning: No data file found at", data_file)
         print("   Please run the following command first:")
-        print("   python scripts/simple_cli.py parse history --summarize -o data/web_sessions.json")
+        print("   python scripts/demo_parser.py")
+        print("   or")
+        print("   python scripts/simple_cli.py parse history --summarize")
         print()
         
         response = input("Continue anyway? (y/N): ").strip().lower()
@@ -39,11 +45,9 @@ def main():
     print("=" * 50)
     
     try:
-        # Import and run the FastAPI app
-        from talkshow.web.app import app
-        
+        # Use import string for uvicorn to enable reload
         uvicorn.run(
-            app,
+            "talkshow.web.app:app",
             host="127.0.0.1",
             port=8000,
             reload=True,

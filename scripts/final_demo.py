@@ -39,12 +39,13 @@ def main():
     print("A comprehensive demonstration of chat history analysis capabilities")
     print("Phases 1-3: Parsing → CLI Tools → LLM Integration")
     
-    # Configuration
-    history_dir = "history"
-    rule_output = "data/rule_based_sessions.json"
-    llm_output = "data/llm_enhanced_sessions.json"
+    # Initialize configuration manager
+    config_manager = ConfigManager()
+    history_dir = config_manager.get_history_dir()
+    rule_output = config_manager.get_data_file_path()
+    llm_output = config_manager.get_data_file_path()
     
-    if not Path(history_dir).exists():
+    if not history_dir.exists():
         print(f"❌ History directory '{history_dir}' not found!")
         return 1
     
@@ -54,11 +55,11 @@ def main():
     print("Initializing core components...")
     parser = MDParser()
     rule_summarizer = RuleSummarizer()
-    storage_rule = JSONStorage(rule_output)
+    storage_rule = JSONStorage(str(rule_output))
     
     # Parse files
     print(f"📁 Parsing {history_dir} directory...")
-    sessions = parser.parse_directory(history_dir)
+    sessions = parser.parse_directory(str(history_dir))
     print(f"✅ Parsed {len(sessions)} chat sessions")
     
     # Generate rule-based summaries
@@ -84,7 +85,6 @@ def main():
     print_section("🤖 Phase 3: LLM Integration")
     
     # Test LLM integration
-    config_manager = ConfigManager()
     llm_available = False
     llm_summaries = 0
     
@@ -99,43 +99,47 @@ def main():
         if llm_info['api_key_configured'] and llm_summarizer.test_connection():
             print("✅ LLM connection successful!")
             llm_available = True
-            
-            # Generate LLM summaries for a sample of sessions
-            print("🧠 Generating LLM summaries (limited by API rate limits)...")
-            sample_sessions = sessions[:3]  # Limit to prevent rate limiting
-            
-            for session in sample_sessions:
-                for qa_pair in session.qa_pairs[:2]:  # Limit QA pairs per session
-                    try:
-                        q_summary, a_summary = llm_summarizer.summarize_both(
-                            qa_pair.question, qa_pair.answer
-                        )
-                        if q_summary:
-                            qa_pair.question_summary = q_summary
-                            llm_summaries += 1
-                        if a_summary:
-                            qa_pair.answer_summary = a_summary
-                            llm_summaries += 1
-                    except Exception as e:
-                        print(f"   ⚠️  Rate limit reached: {e}")
-                        break
-                if llm_summaries > 0:
-                    break  # Stop after getting some samples
-            
-            # Save LLM-enhanced results
-            storage_llm = JSONStorage(llm_output)
-            storage_llm.save_sessions(sessions)
-            print(f"✅ Generated {llm_summaries} LLM summaries")
-            print(f"💾 Saved to {llm_output}")
-            
         else:
-            print("❌ LLM connection failed")
-            
+            print("❌ LLM connection failed or not configured")
     except Exception as e:
         print(f"❌ LLM initialization failed: {e}")
     
-    print_section("📊 Comprehensive Statistics")
+    if llm_available:
+        print("📝 Generating LLM-enhanced summaries...")
+        storage_llm = JSONStorage(str(llm_output))
+        
+        # Create a copy of sessions for LLM processing
+        llm_sessions = sessions.copy()
+        
+        for i, session in enumerate(llm_sessions):
+            print(f"   Processing session {i+1}/{len(llm_sessions)}: {session.meta.theme[:50]}...")
+            
+            for qa_pair in session.qa_pairs:
+                try:
+                    q_summary, a_summary = llm_summarizer.summarize_both(
+                        qa_pair.question, qa_pair.answer
+                    )
+                    qa_pair.question_summary = q_summary
+                    qa_pair.answer_summary = a_summary
+                    if q_summary:
+                        llm_summaries += 1
+                    if a_summary:
+                        llm_summaries += 1
+                except Exception as e:
+                    print(f"      ⚠️  LLM summarization failed: {e}")
+                    # Keep existing rule-based summaries
+        
+        # Save LLM-enhanced results
+        storage_llm.save_sessions(llm_sessions)
+        print(f"✅ Generated {llm_summaries} LLM-enhanced summaries")
+        print(f"💾 Saved to {llm_output}")
+    else:
+        print("📏 Using rule-based summaries only")
+        print("💡 Tip: Set MOONSHOT_API_KEY environment variable to enable LLM summaries")
     
+    print_section("📊 Final Statistics")
+    
+    # Calculate comprehensive statistics
     total_qa_pairs = sum(len(session.qa_pairs) for session in sessions)
     total_questions_with_summary = sum(
         1 for session in sessions 
@@ -148,69 +152,44 @@ def main():
         if qa.answer_summary
     )
     
-    print(f"📁 Total sessions: {len(sessions)}")
-    print(f"💬 Total Q&A pairs: {total_qa_pairs}")
-    print(f"📝 Questions with summaries: {total_questions_with_summary}")
-    print(f"📋 Answers with summaries: {total_answers_with_summary}")
-    print(f"📏 Rule-based summaries: {rule_summaries}")
+    print(f"Total sessions: {len(sessions)}")
+    print(f"Total Q&A pairs: {total_qa_pairs}")
+    print(f"Rule-based summaries: {rule_summaries}")
     if llm_available:
-        print(f"🧠 LLM summaries: {llm_summaries}")
-        print(f"🤖 LLM integration: ✅ Functional")
-    else:
-        print(f"🤖 LLM integration: ❌ Not available (API key needed)")
+        print(f"LLM summaries: {llm_summaries}")
+        llm_percentage = (llm_summaries / (rule_summaries + llm_summaries)) * 100 if (rule_summaries + llm_summaries) > 0 else 0
+        print(f"LLM summary success rate: {llm_percentage:.1f}%")
+    print(f"Questions with summaries: {total_questions_with_summary}")
+    print(f"Answers with summaries: {total_answers_with_summary}")
     
-    # Show date range
-    if sessions:
-        oldest = min(sessions, key=lambda s: s.meta.ctime)
-        newest = max(sessions, key=lambda s: s.meta.ctime)
-        print(f"📅 Date range: {oldest.meta.ctime.strftime('%Y-%m-%d')} to {newest.meta.ctime.strftime('%Y-%m-%d')}")
+    # Show storage info
+    print(f"\n💾 Storage Information:")
+    print("-" * 30)
+    info = storage_rule.get_storage_info()
+    for key, value in info.items():
+        print(f"{key}: {value}")
     
-    print_section("🎯 Phase 2: CLI Tools Demo")
+    # Display sample sessions
+    print(f"\n📋 Sample Sessions (first 3):")
+    print("-" * 30)
     
-    print("Available CLI commands:")
-    print("  • python scripts/simple_cli.py parse history --summarize")
-    print("  • python scripts/simple_cli.py parse history --summarize --use-llm")  
-    print("  • python scripts/simple_cli.py list")
-    print("  • python scripts/simple_cli.py stats")
-    print("  • python scripts/simple_cli.py show <filename>")
-    
-    print_section("🔍 Sample Content Analysis")
-    
-    # Show analysis of different content types
-    if sessions:
-        session = sessions[0]
-        print(f"Sample session: {session.meta.theme}")
-        print(f"Created: {session.meta.ctime.strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"Q&A pairs: {len(session.qa_pairs)}")
+    for i, session in enumerate(sessions[:3]):
+        print(f"\n{i+1}. {session.meta.theme}")
+        print(f"   File: {session.meta.filename}")
+        print(f"   Time: {session.meta.ctime.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   Q&A pairs: {len(session.qa_pairs)}")
         
+        # Show first Q&A pair
         if session.qa_pairs:
             qa = session.qa_pairs[0]
-            print(f"\nFirst question ({len(qa.question)} chars):")
-            print(f"  {qa.question[:100]}{'...' if len(qa.question) > 100 else ''}")
-            if qa.question_summary:
-                print(f"  → Summary: {qa.question_summary}")
-            
-            print(f"\nFirst answer ({len(qa.answer)} chars):")
-            print(f"  {qa.answer[:150]}{'...' if len(qa.answer) > 150 else ''}")
-            if qa.answer_summary:
-                print(f"  → Summary: {qa.answer_summary}")
+            print(f"   First Q: {qa.get_question_display(use_summary=True)[:60]}...")
+            print(f"   First A: {qa.get_answer_display(use_summary=True)[:80]}...")
     
-    print_header("🎉 Demo Complete", char="=")
-    
-    print("✅ All phases successfully demonstrated:")
-    print("   Phase 1: ✅ Core parsing, storage, and rule-based summarization")
-    print("   Phase 2: ✅ Enhanced CLI tools with summarization options")
-    print("   Phase 3: ✅ LLM integration with intelligent summarization")
-    
-    print(f"\n📁 Output files:")
-    print(f"   • {rule_output} - Rule-based summaries")
+    print_header("🎉 Demo Completed Successfully!")
+    print(f"📁 Rule-based data: {rule_output}")
     if llm_available:
-        print(f"   • {llm_output} - LLM-enhanced summaries")
-    
-    print(f"\n💡 Next steps:")
-    print("   • Set MOONSHOT_API_KEY for full LLM functionality")
-    print("   • Explore CLI tools for interactive analysis")
-    print("   • Consider Phase 4: Web frontend development")
+        print(f"📁 LLM-enhanced data: {llm_output}")
+    print("\n🚀 All TalkShow features demonstrated successfully!")
     
     return 0
 

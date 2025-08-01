@@ -26,20 +26,20 @@ def main():
     print("🎭 TalkShow Advanced Demo - LLM-Enhanced Chat History Analyzer")
     print("=" * 70)
     
-    # Configuration
-    history_dir = "history"
-    storage_path = "data/advanced_sessions.json"
+    # Initialize configuration manager
+    config_manager = ConfigManager()
+    history_dir = config_manager.get_history_dir()
+    storage_path = config_manager.get_data_file_path()
     
     # Check if history directory exists
-    if not Path(history_dir).exists():
+    if not history_dir.exists():
         print(f"❌ History directory '{history_dir}' not found!")
         return 1
     
     # Initialize components
     print("🔧 Initializing components...")
-    config_manager = ConfigManager()
     parser = MDParser()
-    storage = JSONStorage(storage_path)
+    storage = JSONStorage(str(storage_path))
     rule_summarizer = RuleSummarizer()
     
     # Test LLM configuration
@@ -73,7 +73,7 @@ def main():
     
     # Parse files
     print(f"📁 Parsing files from '{history_dir}' directory...")
-    sessions = parser.parse_directory(history_dir)
+    sessions = parser.parse_directory(str(history_dir))
     
     if not sessions:
         print("❌ No valid sessions found!")
@@ -100,27 +100,32 @@ def main():
             if rule_a_summary:
                 rule_summaries += 1
             
-            # Generate LLM summaries if available
+            # Try LLM summarization if available
             if use_llm and llm_summarizer:
                 try:
                     llm_q_summary, llm_a_summary = llm_summarizer.summarize_both(
                         qa_pair.question, qa_pair.answer
                     )
                     
-                    # Use LLM summaries if available, otherwise fall back to rule-based
-                    qa_pair.question_summary = llm_q_summary or rule_q_summary
-                    qa_pair.answer_summary = llm_a_summary or rule_a_summary
-                    
                     if llm_q_summary:
+                        qa_pair.question_summary = llm_q_summary
                         llm_summaries += 1
+                    else:
+                        qa_pair.question_summary = rule_q_summary
+                    
                     if llm_a_summary:
+                        qa_pair.answer_summary = llm_a_summary
                         llm_summaries += 1
+                    else:
+                        qa_pair.answer_summary = rule_a_summary
                         
                 except Exception as e:
-                    print(f"   ⚠️  LLM summarization failed for one QA pair: {e}")
+                    print(f"      ⚠️  LLM summarization failed for session {i+1}: {e}")
+                    # Fallback to rule-based summaries
                     qa_pair.question_summary = rule_q_summary
                     qa_pair.answer_summary = rule_a_summary
             else:
+                # Use rule-based summaries only
                 qa_pair.question_summary = rule_q_summary
                 qa_pair.answer_summary = rule_a_summary
     
@@ -132,9 +137,9 @@ def main():
         print("❌ Failed to save sessions!")
         return 1
     
-    # Display comprehensive statistics
-    print("\n📊 Comprehensive Statistics:")
-    print("=" * 50)
+    # Display advanced statistics
+    print("\n📊 Advanced Statistics:")
+    print("-" * 40)
     
     total_qa_pairs = sum(len(session.qa_pairs) for session in sessions)
     total_questions_with_summary = sum(
@@ -150,56 +155,44 @@ def main():
     
     print(f"Total sessions: {len(sessions)}")
     print(f"Total Q&A pairs: {total_qa_pairs}")
+    print(f"Rule-based summaries: {rule_summaries}")
+    print(f"LLM summaries: {llm_summaries}")
     print(f"Questions with summaries: {total_questions_with_summary}")
     print(f"Answers with summaries: {total_answers_with_summary}")
     
     if use_llm:
-        print(f"Rule-based summaries generated: {rule_summaries}")
-        print(f"LLM summaries generated: {llm_summaries}")
-        print(f"LLM usage rate: {llm_summaries/(rule_summaries+llm_summaries)*100:.1f}%")
-    else:
-        print(f"Rule-based summaries generated: {rule_summaries}")
-        print("LLM summaries: Not available")
+        llm_percentage = (llm_summaries / (rule_summaries + llm_summaries)) * 100 if (rule_summaries + llm_summaries) > 0 else 0
+        print(f"LLM summary success rate: {llm_percentage:.1f}%")
     
     # Show storage info
     print(f"\n💾 Storage Information:")
-    print("=" * 30)
+    print("-" * 30)
     info = storage.get_storage_info()
     for key, value in info.items():
         print(f"{key}: {value}")
     
-    # Show comparison examples
-    print(f"\n🔍 Summary Comparison Examples:")
-    print("=" * 40)
+    # Display sample sessions with comparison
+    print(f"\n📋 Sample Sessions with Summary Comparison:")
+    print("-" * 50)
     
-    # Find sessions with both types of summaries for comparison
-    comparison_count = 0
-    for session in sessions[:3]:  # Show first 3 sessions
-        print(f"\n📋 Session: {session.meta.theme}")
-        print(f"Time: {session.meta.ctime.strftime('%Y-%m-%d %H:%M:%S')}")
+    for i, session in enumerate(sessions[:2]):
+        print(f"\n{i+1}. {session.meta.theme}")
+        print(f"   File: {session.meta.filename}")
+        print(f"   Time: {session.meta.ctime.strftime('%Y-%m-%d %H:%M:%S')}")
+        print(f"   Q&A pairs: {len(session.qa_pairs)}")
         
-        for qa in session.qa_pairs[:2]:  # Show first 2 QA pairs per session
-            print(f"\n   Original Q: {qa.question[:100]}{'...' if len(qa.question) > 100 else ''}")
-            print(f"   Summary Q:  {qa.question_summary or 'None'}")
-            
-            print(f"   Original A: {qa.answer[:150]}{'...' if len(qa.answer) > 150 else ''}")
-            print(f"   Summary A:  {qa.answer_summary or 'None'}")
-            
-            comparison_count += 1
-            if comparison_count >= 6:  # Limit to 6 examples
-                break
-        
-        if comparison_count >= 6:
-            break
+        # Show first Q&A pair with summaries
+        if session.qa_pairs:
+            qa = session.qa_pairs[0]
+            print(f"   First Q: {qa.question[:60]}...")
+            if qa.question_summary:
+                print(f"   Q Summary: {qa.question_summary}")
+            print(f"   First A: {qa.answer[:80]}...")
+            if qa.answer_summary:
+                print(f"   A Summary: {qa.answer_summary}")
     
     print(f"\n🎉 Advanced demo completed successfully!")
-    print(f"📁 Enhanced data saved to: {storage_path}")
-    
-    if use_llm:
-        print("🤖 LLM-enhanced summaries generated!")
-    else:
-        print("📏 Rule-based summaries generated")
-        print("💡 Tip: Set MOONSHOT_API_KEY environment variable to enable LLM summaries")
+    print(f"📁 Processed data saved to: {storage_path}")
     
     return 0
 
