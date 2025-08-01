@@ -62,17 +62,21 @@ A 可能会比较长, 估计要 summary 为不超过 80.
 
 cli 展示可以快速在终端中查看基本摘要, web 前端则可以更加丰富的交互查看.
 
-
 ### web 前端展示
 
 基本的设限是一个滑动展示的 table
 
-一个 md 是一列, 按照时间产生行.
+~~一个 md 是一列, 按照时间产生行.~~
 
-history 中的多个 md 产生 多个 列,
+~~history 中的多个 md 产生 多个 列,~~
 
-拖动向左时, row header 的 时间轴也要跟着变化.
+~~拖动向左时, row header 的 时间轴也要跟着变化.~~
 
+
+一天一列
+
+每列按时间顺序显示 Q block
+Qblock 由 question , theme, datetime 构成
 
 # plan
 
@@ -133,21 +137,22 @@ talkshow/
 ### Phase 1: 数据分析核心 (MVP)
 
 1. **数据模型定义** (`talkshow/models/`)
+
    - `ChatSession`: 表示一个 MD 文件的完整会话
    - `QAPair`: 表示一个问答对
    - `SessionMeta`: 会话元数据 (CTime, Theme)
-
 2. **MD 文件解析器** (`talkshow/parser/`)
+
    - 解析 MD 文件结构
    - 提取 User/Assistant 对话
    - 提取时间戳信息
    - 从文件名提取主题
-
 3. **基础存储层** (`talkshow/storage/`)
+
    - 先实现 JSON 存储
    - 定义统一的存储接口
-
 4. **基础摘要器** (`talkshow/summarizer/`)
+
    - 先实现基于规则的摘要 (长度截断)
    - 为 LLM 摘要预留接口
 
@@ -169,11 +174,12 @@ talkshow/
 ### Phase 4: Web 前端
 
 7. **API 服务** (`talkshow/web/`)
+
    - FastAPI 后端
    - 提供 RESTful API
    - 支持会话列表、详情、搜索等
-
 8. **前端界面** (`talkshow/web/static/`)
+
    - 时间轴表格展示
    - 交互式滑动
    - 会话内容查看
@@ -181,10 +187,11 @@ talkshow/
 ### Phase 5: 高级功能
 
 9. **SQLite 存储**
+
    - 更高效的数据存储
    - 支持复杂查询
-
 10. **增强功能**
+
     - 全文搜索
     - 标签系统
     - 导出功能
@@ -203,6 +210,7 @@ talkshow/
 ## 配置管理
 
 支持通过配置文件或环境变量设置:
+
 - LLM API 密钥和提供商
 - 摘要长度限制
 - 存储方式选择

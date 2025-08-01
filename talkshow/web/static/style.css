@@ -14,7 +14,7 @@ body {
 }
 
 .container {
-    max-width: 1400px;
+    max-width: 95vw; /* 从1400px改为95vw，使用95%的视窗宽度 */
     margin: 0 auto;
     padding: 20px;
 }
@@ -120,259 +120,159 @@ button:hover {
     background: #5a67d8;
 }
 
-/* Timeline Container */
-.timeline-container {
+/* Daily Insights Container */
+.daily-insights-container {
     background: white;
     border-radius: 10px;
     box-shadow: 0 2px 10px rgba(0,0,0,0.1);
     overflow: hidden;
 }
 
-.timeline-header {
+.insights-header {
     background: #f8f9fa;
     padding: 1rem;
     border-bottom: 1px solid #eee;
     display: flex;
-    justify-content: between;
+    justify-content: space-between;
     align-items: center;
 }
 
-.timeline-view {
-    position: relative;
-    overflow-x: auto;
-    overflow-y: hidden;
-    height: 600px;
-    border: 1px solid #eee;
-}
-
-/* Timeline Axis */
-.time-axis {
-    position: sticky;
-    left: 0;
-    top: 0;
-    width: 200px;
-    height: 100%;
-    background: #f8f9fa;
-    border-right: 2px solid #667eea;
-    z-index: 10;
-    overflow-y: auto;
-}
-
-.time-marker {
-    height: 50px; /* 固定每格高度 - 30分钟 */
-    border-bottom: 1px solid #eee;
-    font-size: 0.8rem;
-    background: white;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    padding: 0 0.75rem;
-    position: relative;
-}
-
-.time-marker.hour-mark {
-    border-bottom: 2px solid #ccc;
-    background: #f8f9fa;
-}
-
-.time-marker.half-hour-mark {
-    border-bottom: 1px solid #eee;
-    background: white;
-}
-
-.time-marker.new-day {
-    border-top: 3px solid #667eea;
-}
-
-.date-header {
-    font-weight: bold;
-    color: #667eea;
-    font-size: 0.9rem;
-    margin-bottom: 0.25rem;
-    padding: 0.25rem 0;
-    border-bottom: 1px solid #667eea;
-}
-
-.time-text.hour-text {
-    font-weight: bold;
+.insights-header h3 {
     color: #333;
-    font-size: 0.85rem;
+    margin: 0;
 }
 
-.time-text.half-hour-text {
-    font-weight: normal;
-    color: #666;
-    font-size: 0.75rem;
-    margin-left: 0.5rem;
+.insights-content {
+    padding: 1rem;
 }
 
-.time-marker.current {
-    background: #667eea;
-    color: white;
-    font-weight: bold;
+/* Daily Table Container */
+.daily-table-container {
+    margin-bottom: 2rem;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.time-marker.visible {
-    background: linear-gradient(90deg, #fff3cd 0%, white 100%);
-    border-left: 3px solid #ffc107;
-}
-
-/* 优化会话内容容器 */
-.session-content {
-    padding: 0;
-    height: calc(100% - 80px);
-    overflow: visible; /* 改为可见，避免滚动冲突 */
-    position: relative;
-    min-height: 1000px; /* 确保有足够高度容纳时间轴 */
-}
-
-/* Sessions Grid */
-.sessions-grid {
-    position: absolute;
-    top: 0;
-    left: 200px;
-    display: flex;
-    gap: 2px;
-    height: 100%;
-    min-width: calc(100% - 200px);
-}
-
-.session-column {
-    min-width: 250px;
-    max-width: 350px;
-    background: white;
-    border-right: 1px solid #eee;
-    position: relative;
-}
-
-.session-header {
-    position: sticky;
-    top: 0;
-    background: #667eea;
+.daily-table-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     color: white;
     padding: 1rem;
-    z-index: 5;
-    border-bottom: 2px solid #5a67d8;
+    border-bottom: 1px solid #ddd;
 }
 
-.session-title {
-    font-size: 0.9rem;
-    font-weight: bold;
-    margin-bottom: 0.25rem;
-    word-break: break-word;
+.daily-table-header h4 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
 }
 
-.session-title {
-    color: #333;
-    text-decoration: none;
-    transition: all 0.2s ease;
-    padding: 0.25rem 0;
-    border-radius: 4px;
-    display: block;
+/* Daily Table */
+.daily-table {
+    overflow-x: auto;
 }
 
-.session-title:hover {
-    color: #667eea;
-    background: rgba(102, 126, 234, 0.1);
-    transform: translateY(-1px);
-    text-decoration: none;
-}
-
-.session-meta {
-    font-size: 0.75rem;
-    opacity: 0.9;
-}
-
-.session-content {
-    padding: 0;
-    height: calc(100% - 80px);
-    overflow-y: auto;
-    position: relative; /* 支持绝对定位的子元素 */
-}
-
-/* QA Pairs */
-.qa-pair {
-    position: absolute; /* 绝对定位到时间轴位置 */
-    left: 0;
-    right: 0;
-    min-height: 40px; /* 最小高度 */
-    max-height: 120px; /* 最大高度，避免重叠 */
-    padding: 0.5rem;
-    margin: 2px 0;
-    border: 1px solid #e0e0e0;
-    border-radius: 6px;
+.daily-table table {
+    width: 100%;
+    border-collapse: collapse;
     background: white;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    transition: all 0.2s;
-    z-index: 1;
-    overflow: hidden; /* 防止内容溢出 */
 }
 
-.qa-pair:hover {
+.daily-table thead {
     background: #f8f9fa;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    z-index: 2;
-    max-height: none; /* 悬浮时取消高度限制 */
+    border-bottom: 2px solid #667eea;
 }
 
-.qa-pair.highlighted {
-    background: #fff3cd;
-    border-left: 4px solid #ffc107;
+.daily-table th {
+    padding: 0.75rem;
+    text-align: left;
+    font-weight: 600;
+    color: #333;
+    border-bottom: 1px solid #ddd;
 }
 
-.question {
-    background: #e3f2fd;
-    padding: 0.4rem 0.6rem;
+.daily-table td {
+    padding: 0.75rem;
+    border-bottom: 1px solid #eee;
+    vertical-align: top;
+}
+
+/* Table Columns */
+.time-column {
+    width: 80px;
+    min-width: 80px;
+}
+
+.question-column {
+    min-width: 400px;
+}
+
+.theme-column {
+    width: 200px;
+    min-width: 200px;
+}
+
+/* Table Cells */
+.time-cell {
+    font-family: 'Courier New', monospace;
+    font-weight: 600;
+    color: #667eea;
+    background: #f8f9fa;
+    text-align: center;
     border-radius: 4px;
-    margin-bottom: 0.25rem;
-    border-left: 3px solid #2196f3;
+    padding: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.question-cell {
+    padding: 0.75rem;
 }
 
 .question-text {
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: #1976d2;
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    color: #333;
+    word-wrap: break-word;
+    max-width: 100%;
 }
 
-.answer {
-    background: #f3e5f5;
-    padding: 0.4rem 0.6rem;
+.theme-cell {
+    padding: 0.75rem;
+}
+
+.theme-text {
+    font-size: 0.8rem;
+    color: #666;
+    background: #f8f9fa;
+    padding: 0.25rem 0.5rem;
     border-radius: 4px;
-    border-left: 3px solid #9c27b0;
+    border-left: 3px solid #667eea;
+    word-wrap: break-word;
 }
 
-.answer-text {
-    font-size: 0.75rem;
-    color: #7b1fa2;
-    line-height: 1.3;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
+/* Question Row */
+.question-row {
+    transition: all 0.2s ease;
+    cursor: pointer;
 }
 
-.qa-timestamp {
-    font-size: 0.65rem;
-    color: #999;
-    margin-top: 0.25rem;
-    text-align: right;
+.question-row:hover {
+    background: #f8f9fa;
+    transform: translateX(2px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-/* 悬浮时显示完整内容 */
-.qa-pair:hover .question-text,
-.qa-pair:hover .answer-text {
-    -webkit-line-clamp: none;
-    max-height: none;
+.question-row:hover .time-cell {
+    background: #667eea;
+    color: white;
 }
 
-/* 移除了弹窗和MD内容样式，现在在独立页面中处理 */
+.question-row:hover .theme-text {
+    background: #667eea;
+    color: white;
+    border-left-color: #5a67d8;
+}
 
 /* Loading and Error States */
 .loading {
@@ -409,21 +309,30 @@ button:hover {
         align-items: stretch;
     }
     
-    .timeline-view {
-        height: 400px;
+    .daily-table {
+        font-size: 0.8rem;
     }
     
-    .time-axis {
-        width: 150px;
+    .time-column {
+        width: 60px;
+        min-width: 60px;
     }
     
-    .sessions-grid {
-        left: 150px;
+    .question-column {
+        min-width: 250px;
     }
     
-    .session-column {
-        min-width: 200px;
-        max-width: 280px;
+    .theme-column {
+        width: 120px;
+        min-width: 120px;
+    }
+    
+    .question-text {
+        font-size: 0.8rem;
+    }
+    
+    .theme-text {
+        font-size: 0.7rem;
     }
 }
 
@@ -452,7 +361,7 @@ button:hover {
     to { opacity: 1; transform: translateY(0); }
 }
 
-.qa-pair {
+.daily-table-container {
     animation: fadeIn 0.3s ease-out;
 }
 
@@ -475,3 +384,177 @@ button:hover {
 .mb-2 { margin-bottom: 1rem; }
 .mt-1 { margin-top: 0.5rem; }
 .mt-2 { margin-top: 1rem; }
+
+/* Daily Insights - 水平滚动布局 */
+.daily-insights {
+    margin-top: 2rem;
+}
+
+.daily-insights-header {
+    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.daily-insights-container {
+    display: flex;
+    overflow-x: auto;
+    gap: 1.5rem;
+    padding: 1rem 0;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    width: 100%; /* 确保容器占满可用宽度 */
+}
+
+.daily-column {
+    min-width: 260px; /* 从280px减小到260px，让一屏能显示更多列 */
+    min-height: 600px;
+    flex-shrink: 0;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    padding: 1.5rem;
+    border: 1px solid #e1e5e9;
+    display: flex;
+    flex-direction: column;
+}
+
+.daily-column-header {
+    border-bottom: 2px solid #667eea;
+    padding-bottom: 0.5rem;
+    margin-bottom: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0; /* 防止头部被压缩 */
+}
+
+.daily-column-header h4 {
+    margin: 0;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.daily-column-header .question-count {
+    background: #667eea;
+    color: white;
+    padding: 0.2rem 0.6rem;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.daily-column-content {
+    flex: 1; /* 让内容区域占据剩余空间 */
+    overflow-y: auto; /* 如果内容过多，允许垂直滚动 */
+    padding-right: 0.5rem; /* 为滚动条留出空间 */
+}
+
+.daily-question {
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    transition: all 0.2s ease;
+    max-width: 300px;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    min-height: 80px; /* 增加每个问题的最小高度 */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.daily-question:hover {
+    background: #e3f2fd;
+    transform: translateX(4px);
+}
+
+.question-summary {
+    font-size: 1rem;
+    color: #2c3e50;
+    line-height: 1.5;
+    margin-bottom: 0.8rem;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 4; /* 增加显示行数 */
+    -webkit-box-orient: vertical;
+    word-wrap: break-word;
+    font-weight: 500; /* 让问题摘要更突出 */
+    flex: 1; /* 让问题摘要占据主要空间 */
+}
+
+.question-time {
+    font-size: 0.8rem;
+    color: #95a5a6;
+    font-weight: 400;
+    margin-top: auto; /* 将时间推到底部 */
+    text-align: right;
+    opacity: 0.7; /* 降低时间的重要性 */
+}
+
+.question-theme {
+    font-size: 0.75rem;
+    color: #667eea;
+    background: rgba(102, 126, 234, 0.1);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
+}
+
+/* 滚动条样式 */
+.daily-insights-container::-webkit-scrollbar {
+    height: 8px;
+}
+
+.daily-insights-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.daily-insights-container::-webkit-scrollbar-thumb {
+    background: #667eea;
+    border-radius: 4px;
+}
+
+.daily-insights-container::-webkit-scrollbar-thumb:hover {
+    background: #5a6fd8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .daily-column {
+        min-width: 300px;
+        padding: 1rem;
+    }
+    
+    .daily-insights-container {
+        gap: 1rem;
+    }
+}
+
+/* 滚动提示 */
+.scroll-hint {
+    text-align: center;
+    color: #666;
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+    opacity: 0.8;
+}
+
+/* 空状态 */
+.daily-column.empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 200px;
+    color: #999;
+    font-style: italic;
+}
