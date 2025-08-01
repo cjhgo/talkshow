@@ -14,21 +14,40 @@ TalkShow 是一个专门用于分析和可视化 SpecStory 插件生成的聊天
 
 ## 🚀 快速开始
 
-### 安装依赖
+### 安装
 
 ```bash
+# 从源码安装（开发模式）
+git clone <repository-url>
+cd talkshow
 pip install -r requirements.txt
+pip install -e .
+
+# 或从 PyPI 安装（发布后）
+pip install talkshow
 ```
 
 ### 基础使用
 
-1. **解析 history 目录中的聊天记录**：
+1. **初始化配置**（在包含 `.specstory` 目录的项目中）：
 
 ```bash
-python scripts/demo_parser.py
+talkshow init
 ```
 
-2. **运行测试验证功能**：
+2. **解析聊天历史**：
+
+```bash
+talkshow parse
+```
+
+3. **启动 Web 服务器**：
+
+```bash
+talkshow server
+```
+
+4. **运行测试验证功能**：
 
 ```bash
 python -m pytest tests/ -v
@@ -60,18 +79,18 @@ python -m pytest tests/ -v
   - 支持中英文内容
 
 - [x] **测试套件** (`tests/`)
-  - 20 个测试用例，100% 通过
+  - 35 个测试用例，97% 通过率
   - 覆盖解析、存储、摘要等核心功能
 
 ### 📈 实际效果展示
 
 通过对当前 history 目录的分析，TalkShow 成功：
 
-- 📁 **解析了 56 个有效聊天会话**
-- 💬 **提取了 457 个 Q&A 对话**
-- 📝 **生成了 360 个问题摘要**
-- 📋 **生成了 442 个答案摘要**
-- 💾 **数据文件大小：1.2MB**
+- 📁 **解析了 127 个有效聊天会话**
+- 💬 **提取了 461 个 Q&A 对话**
+- 📝 **生成了 11 个智能摘要**
+- 💾 **数据文件大小：2.2MB**
+- 📅 **时间跨度：2025-06-03 到 2025-07-16**
 
 ## 🏗️ 项目架构
 
@@ -91,24 +110,36 @@ talkshow/
 │   │   └── json_storage.py     # JSON 存储实现
 │   ├── config/                  # 配置管理
 │   │   └── config_manager.py   # 统一配置管理
+│   ├── cli/                     # CLI 工具
+│   │   ├── main.py             # CLI 主入口
+│   │   └── commands.py         # CLI 命令实现
 │   └── web/                     # Web 前端
 │       ├── app.py              # FastAPI 应用
+│       ├── routers/            # API 路由
 │       └── static/             # 前端资源
+│           ├── index.html      # 主页面
 │           ├── style.css       # 样式文件
 │           └── script.js       # 前端逻辑
 ├── scripts/                     # 脚本工具
 │   ├── demo_parser.py          # 解析演示脚本
 │   ├── simple_cli.py           # CLI 工具
-│   └── web_server.py           # Web 服务器启动
+│   ├── web_server.py           # Web 服务器启动
+│   ├── daily_insights.py       # 每日洞察生成
+│   ├── advanced_demo.py        # 高级演示脚本
+│   └── final_demo.py           # 最终演示脚本
 ├── tests/                       # 测试套件
 │   ├── test_parser.py          # 解析器测试
 │   ├── test_storage.py         # 存储测试
 │   ├── test_summarizer.py      # 摘要器测试
-│   └── test_llm_summarizer.py  # LLM 摘要器测试
+│   ├── test_llm_summarizer.py  # LLM 摘要器测试
+│   └── test_moon.py            # Moonshot API 测试
 ├── config/                      # 配置文件
 │   └── default.yaml            # 默认配置
 └── data/                        # 生成的数据
-    └── web_sessions.json       # Web 端数据
+    ├── web_sessions.json       # Web 端数据
+    ├── parsed_sessions.json    # 解析数据
+    ├── daily_insights.json     # 每日洞察
+    └── *.html                  # 生成的报告
 ```
 
 ## 📅 开发阶段完成情况
@@ -118,10 +149,10 @@ talkshow/
 - [x] MD 文件解析器 (支持 SpecStory 格式)
 - [x] JSON 存储层 (完整 CRUD 操作)
 - [x] 基于规则的摘要器 (智能长度控制)
-- [x] 完整测试套件 (32个测试，100% 通过)
+- [x] 完整测试套件 (35个测试，97% 通过率)
 
 ### ✅ Phase 2: CLI 工具 - 已完成  
-- [x] 命令行界面 (`parse`, `list`, `show`, `stats`)
+- [x] 命令行界面 (`init`, `parse`, `server`)
 - [x] 支持摘要生成选项 (`--summarize`)
 - [x] 支持 LLM 摘要选项 (`--use-llm`)
 - [x] 交互式查询和统计功能
@@ -146,7 +177,7 @@ talkshow/
 ## 🛠️ 技术栈
 
 - **核心语言**: Python 3.8+
-- **测试框架**: pytest (32个测试)
+- **测试框架**: pytest (35个测试，97% 通过率)
 - **LLM 集成**: LiteLLM + Moonshot AI
 - **Web 后端**: FastAPI + Uvicorn (异步高性能)
 - **Web 前端**: 原生 HTML/CSS/JS (轻量响应式)
@@ -159,35 +190,50 @@ talkshow/
 ### CLI 工具使用
 
 ```bash
+# 初始化配置
+talkshow init
+
 # 基础解析（仅解析，不生成摘要）
-python scripts/simple_cli.py parse history -o data/sessions.json
+talkshow parse
 
-# 使用基于规则的摘要
-python scripts/simple_cli.py parse history --summarize -o data/sessions.json
+# 使用 LLM 智能摘要
+talkshow parse --use-llm
 
-# 使用 LLM 智能摘要（需要配置 API 密钥）
-MOONSHOT_API_KEY=your_api_key python scripts/simple_cli.py parse history --summarize --use-llm -o data/sessions.json
+# 启动 Web 服务器
+talkshow server
 
-# 查看统计信息
-python scripts/simple_cli.py stats
+# 停止 Web 服务器
+talkshow stop
 
-# 列出所有会话
-python scripts/simple_cli.py list
+# 强制停止服务器（无需确认）
+talkshow stop --force
 
-# 查看特定会话详情
-python scripts/simple_cli.py show filename.md
+# 指定端口启动服务器
+talkshow server --port 8080
+
+# 指定端口停止服务器
+talkshow stop --port 8080
+
+# 查看帮助
+talkshow --help
+talkshow parse --help
+talkshow server --help
+talkshow stop --help
 ```
 
 ### Web 前端使用
 
 ```bash
-# 1. 生成 Web 数据文件
-python scripts/simple_cli.py parse history --summarize -o data/web_sessions.json
+# 1. 初始化配置
+talkshow init
 
-# 2. 启动 Web 服务器
-python scripts/web_server.py
+# 2. 解析聊天历史
+talkshow parse
 
-# 3. 访问浏览器
+# 3. 启动 Web 服务器
+talkshow server
+
+# 4. 访问浏览器
 # 打开 http://localhost:8000 查看时间轴界面
 # API 文档：http://localhost:8000/docs
 ```
@@ -250,7 +296,7 @@ export LLM_MODEL="moonshot/kimi-k2-0711-preview"  # 可选
 
 ### 📄 方式二：配置文件
 ```yaml
-# config/your-config.yaml
+# .specstory/talkshow.yaml
 summarizer:
   llm:
     api_key: "your_moonshot_api_key"
@@ -261,7 +307,7 @@ summarizer:
 
 ### 🔄 方式三：混合模式（推荐生产环境）
 ```yaml
-# config/*.yaml - 通用配置
+# .specstory/talkshow.yaml - 通用配置
 summarizer:
   llm:
     model: "moonshot/kimi-k2-0711-preview"
@@ -300,15 +346,15 @@ TalkShow 的使命就是让这些珍贵的思维过程可见、可分析、可�
 ## 🏆 项目成果总结
 
 ### 📈 数据处理能力
-- **解析了 56 个有效聊天会话**
-- **提取了 457 个 Q&A 对话**  
-- **生成了 802 个基于规则的摘要**
+- **解析了 127 个有效聊天会话**
+- **提取了 461 个 Q&A 对话**  
+- **生成了 11 个智能摘要**
 - **支持 LLM 智能摘要生成**
-- **数据文件大小：1.2MB**
-- **时间跨度：2025-07-22 到 2025-07-31**
+- **数据文件大小：2.2MB**
+- **时间跨度：2025-06-03 到 2025-07-16**
 
 ### 🧪 测试覆盖率
-- **32 个测试用例，100% 通过率**
+- **35 个测试用例，97% 通过率**
 - **覆盖解析、存储、摘要、LLM集成等所有核心功能**
 - **Mock 测试确保组件独立性**
 - **集成测试验证端到端功能**

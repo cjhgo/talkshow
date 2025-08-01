@@ -10,11 +10,13 @@ from fastapi.responses import HTMLResponse
 from typing import List, Dict, Any, Optional
 import json
 import os
+import yaml
 from pathlib import Path
 
 # Import TalkShow components
 from ..storage.json_storage import JSONStorage
 from ..models.chat import ChatSession
+from ..config.manager import ConfigManager
 
 # Create FastAPI app
 app = FastAPI(
@@ -23,9 +25,13 @@ app = FastAPI(
     version="0.2.0"
 )
 
+# Initialize configuration manager
+config_manager = ConfigManager()
+
 # Data storage
-storage_path = "data/web_sessions.json"
-storage = JSONStorage(storage_path)
+storage_path = config_manager.get_data_file_path()
+print(f"Using data file: {storage_path}")
+storage = JSONStorage(str(storage_path))
 
 # Mount static files
 static_dir = Path(__file__).parent / "static"

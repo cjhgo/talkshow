@@ -52,11 +52,12 @@ setup(
         "cli": [
             "click>=8.0.0",
             "rich>=13.0.0",
+            "pyyaml>=6.0.0",
         ]
     },
     entry_points={
         "console_scripts": [
-            "talkshow=scripts.demo_parser:main",
+            "talkshow=talkshow.cli.main:main",
         ],
     },
     include_package_data=True,

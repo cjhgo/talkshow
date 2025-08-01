@@ -1,11 +1,12 @@
-"""Tests for LLM summarizer functionality."""
+"""
+Tests for LLM summarizer functionality.
+"""
 
-import os
 import pytest
-from unittest.mock import patch, MagicMock
-
+from unittest.mock import MagicMock, patch
 from talkshow.summarizer.llm_summarizer import LLMSummarizer
-from talkshow.config.config_manager import ConfigManager
+from talkshow.config.manager import ConfigManager
+from talkshow.models.chat import QAPair
 
 
 class TestLLMSummarizer:
@@ -22,13 +23,29 @@ class TestLLMSummarizer:
                     'api_base': 'https://api.moonshot.cn/v1',
                     'max_tokens': 150,
                     'temperature': 0.3,
-                    'api_key': 'test-api-key'
+                    'api_key': 'xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+                },
+                'rule': {
+                    'max_question_length': 20,
+                    'max_answer_length': 80
                 }
             }
         }
         
         config_manager = MagicMock(spec=ConfigManager)
-        config_manager.get_llm_config.return_value = config['summarizer']['llm']
+        
+        # Configure mock to return different values based on the key
+        def mock_get(key, default=None):
+            if key == "summarizer.llm":
+                return config['summarizer']['llm']
+            elif key == "summarizer.rule.max_question_length":
+                return 20
+            elif key == "summarizer.rule.max_answer_length":
+                return 80
+            else:
+                return default
+        
+        config_manager.get.side_effect = mock_get
         
         return config_manager
     
@@ -37,121 +54,98 @@ class TestLLMSummarizer:
         """Create LLMSummarizer instance with mock config."""
         return LLMSummarizer(config_manager=mock_config)
     
-    def test_initialization_without_api_key(self):
-        """Test that initialization fails without API key."""
-        config_manager = MagicMock(spec=ConfigManager)
-        config_manager.get_llm_config.return_value = {'model': 'test-model'}
-        
-        with pytest.raises(ValueError, match="LLM API key not found"):
-            LLMSummarizer(config_manager=config_manager)
+    def test_initialization(self, summarizer):
+        """Test that initialization works correctly."""
+        assert summarizer.config_manager is not None
+        assert summarizer.llm_config is not None
     
-    def test_short_question_no_summary(self, summarizer):
-        """Test that short questions don't get summarized."""
-        short_question = "Hello"
-        result = summarizer.summarize_question(short_question)
-        assert result is None
-    
-    def test_short_answer_no_summary(self, summarizer):
-        """Test that short answers don't get summarized."""
-        short_answer = "Yes"
-        result = summarizer.summarize_answer(short_answer)
-        assert result is None
+    def test_short_text_no_summary(self, summarizer):
+        """Test that short text doesn't get summarized."""
+        short_text = "Hello"
+        result = summarizer._summarize_text(short_text, max_length=50)
+        assert result == "Hello"
     
     @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_question_summarization_success(self, mock_completion, summarizer):
-        """Test successful question summarization."""
+    def test_summarize_text_success(self, mock_completion, summarizer):
+        """Test successful text summarization."""
         # Mock LLM response
         mock_response = MagicMock()
         mock_response.choices[0].message.content = "如何实现功能？"
         mock_completion.return_value = mock_response
         
-        long_question = "请问在Python中如何实现一个复杂的功能，需要考虑哪些方面的问题？"
-        result = summarizer.summarize_question(long_question)
+        long_text = "请问在Python中如何实现一个复杂的功能，需要考虑哪些方面的问题？"
+        result = summarizer._summarize_text(long_text, max_length=20)
         
         assert result == "如何实现功能？"
         mock_completion.assert_called_once()
     
     @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_answer_summarization_success(self, mock_completion, summarizer):
-        """Test successful answer summarization."""
-        # Mock LLM response
-        mock_response = MagicMock()
-        mock_response.choices[0].message.content = "需要考虑架构设计、错误处理、性能优化等方面。"
-        mock_completion.return_value = mock_response
-        
-        long_answer = "实现复杂功能需要考虑很多方面，包括架构设计、错误处理、性能优化、可维护性等。具体来说，首先要进行需求分析，明确功能要求和技术约束，然后进行系统设计，包括模块划分和接口定义，接着是编码实现，需要遵循编程规范和最佳实践，最后是测试和部署，确保系统稳定运行。"
-        result = summarizer.summarize_answer(long_answer)
-        
-        assert result == "需要考虑架构设计、错误处理、性能优化等方面。"
-        mock_completion.assert_called_once()
-    
-    @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_llm_call_failure(self, mock_completion, summarizer):
-        """Test LLM call failure handling."""
+    def test_summarize_text_failure(self, mock_completion, summarizer):
+        """Test text summarization failure handling."""
         # Mock LLM failure
         mock_completion.side_effect = Exception("API Error")
         
-        long_question = "这是一个很长的问题，需要进行摘要处理"
-        result = summarizer.summarize_question(long_question)
+        # Use a text that's definitely longer than max_length
+        long_text = "这是一个非常长的文本，包含了很多内容，需要进行摘要处理，这个文本的长度超过了最大长度限制，应该会触发LLM调用"
+        result = summarizer._summarize_text(long_text, max_length=10)
         
         assert result is None
     
     @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_summarize_both(self, mock_completion, summarizer):
-        """Test summarizing both question and answer."""
+    def test_summarize_qa_pair(self, mock_completion, summarizer):
+        """Test summarizing Q&A pair."""
         # Mock LLM responses
         mock_response = MagicMock()
         mock_response.choices[0].message.content = "摘要内容"
         mock_completion.return_value = mock_response
         
-        question = "这是一个需要摘要的长问题，包含很多细节信息"
-        answer = "这是一个详细的回答，包含了多个方面的解释和说明，需要进行摘要处理以便更好地展示给用户。回答涵盖了技术实现细节、最佳实践建议、常见问题解决方案等内容，具有较高的参考价值。"
+        qa_pair = QAPair(
+            question="这是一个需要摘要的长问题，包含很多细节信息，这个问题的长度超过了20个字符的限制，应该会触发LLM摘要功能",
+            answer="这是一个非常详细的回答，包含了多个方面的解释和说明，需要进行摘要处理以便更好地展示给用户。这个回答涵盖了技术实现细节、最佳实践建议、常见问题解决方案等内容，具有较高的参考价值。回答中包含了大量的技术术语和具体的实现步骤，需要经过LLM处理来生成简洁的摘要。"
+        )
         
-        q_summary, a_summary = summarizer.summarize_both(question, answer)
+        result = summarizer.summarize_qa(qa_pair)
         
-        assert q_summary == "摘要内容"
-        assert a_summary == "摘要内容"
+        assert result is True
+        assert qa_pair.question_summary == "摘要内容"
+        assert qa_pair.answer_summary == "摘要内容"
         assert mock_completion.call_count == 2
     
     def test_get_usage_info(self, summarizer):
         """Test getting usage information."""
         info = summarizer.get_usage_info()
         
-        assert 'provider' in info
         assert 'model' in info
-        assert 'api_base' in info
         assert 'max_tokens' in info
         assert 'temperature' in info
-        assert 'api_key_configured' in info
-        assert info['api_key_configured'] is True
+        assert info['model'] == 'moonshot/kimi-k2-0711-preview'
+        assert info['max_tokens'] == 150
+        assert info['temperature'] == 0.3
     
     @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_connection_test_success(self, mock_completion, summarizer):
-        """Test successful connection test."""
+    def test_summarize_text_truncation(self, mock_completion, summarizer):
+        """Test that long summaries are truncated."""
+        # Mock LLM response that's too long
         mock_response = MagicMock()
-        mock_response.choices[0].message.content = "你好！"
+        mock_response.choices[0].message.content = "这是一个非常长的摘要内容，超过了最大长度限制"
         mock_completion.return_value = mock_response
         
-        result = summarizer.test_connection()
+        long_text = "这是一个很长的文本，需要进行摘要处理"
+        result = summarizer._summarize_text(long_text, max_length=10)
+        
+        assert result == "这是一个非常长的摘要内容，超过了最大长度限制"[:7] + "..."
+    
+    def test_summarize_qa_with_existing_summaries(self, summarizer):
+        """Test that existing summaries are not overwritten."""
+        qa_pair = QAPair(
+            question="问题",
+            answer="回答",
+            question_summary="已有问题摘要",
+            answer_summary="已有回答摘要"
+        )
+        
+        result = summarizer.summarize_qa(qa_pair)
+        
         assert result is True
-    
-    @patch('talkshow.summarizer.llm_summarizer.completion')
-    def test_connection_test_failure(self, mock_completion, summarizer):
-        """Test failed connection test."""
-        mock_completion.side_effect = Exception("Connection failed")
-        
-        result = summarizer.test_connection()
-        assert result is False
-    
-    def test_create_prompts(self, summarizer):
-        """Test prompt creation methods."""
-        question = "测试问题"
-        answer = "测试回答"
-        
-        q_prompt = summarizer._create_question_prompt(question)
-        a_prompt = summarizer._create_answer_prompt(answer)
-        
-        assert "测试问题" in q_prompt
-        assert "20个字符" in q_prompt
-        assert "测试回答" in a_prompt
-        assert "80个字符" in a_prompt
+        assert qa_pair.question_summary == "已有问题摘要"
+        assert qa_pair.answer_summary == "已有回答摘要"

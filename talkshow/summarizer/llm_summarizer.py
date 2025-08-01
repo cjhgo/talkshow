@@ -1,11 +1,13 @@
-"""LLM-based text summarization using LiteLLM."""
+"""
+LLM-based summarizer for TalkShow.
 
-import os
-from typing import Optional, Dict, Any
-import litellm
+Uses LiteLLM to generate intelligent summaries of questions and answers.
+"""
+
+from typing import Optional, Tuple
 from litellm import completion
-
-from ..config.config_manager import ConfigManager
+from ..config.manager import ConfigManager
+from ..models.chat import QAPair
 
 
 class LLMSummarizer:
@@ -18,113 +20,78 @@ class LLMSummarizer:
             config_manager: Configuration manager instance
         """
         self.config_manager = config_manager or ConfigManager()
-        self.llm_config = self.config_manager.get_llm_config()
-        
-        # Validate configuration
-        if not self.llm_config.get('api_key'):
-            raise ValueError(
-                "LLM API key not found. Please set MOONSHOT_API_KEY environment variable "
-                "or configure api_key in config file."
-            )
+        self.llm_config = self.config_manager.get("summarizer.llm", {})
     
-    def summarize_question(self, question: str) -> Optional[str]:
-        """Summarize a question using LLM.
-        
-        Args:
-            question: The question text to summarize
-            
-        Returns:
-            Summarized question or None if summarization fails
-        """
-        if not question or len(question) <= 20:
-            return None
-        
-        prompt = self._create_question_prompt(question)
-        return self._call_llm(prompt, max_tokens=30)
-    
-    def summarize_answer(self, answer: str) -> Optional[str]:
-        """Summarize an answer using LLM.
-        
-        Args:
-            answer: The answer text to summarize
-            
-        Returns:
-            Summarized answer or None if summarization fails
-        """
-        if not answer or len(answer.strip()) <= 80:
-            return None
-        
-        prompt = self._create_answer_prompt(answer)
-        return self._call_llm(prompt, max_tokens=100)
-    
-    def summarize_both(self, question: str, answer: str) -> tuple:
-        """Summarize both question and answer.
-        
-        Args:
-            question: The question text
-            answer: The answer text
-            
-        Returns:
-            tuple: (question_summary, answer_summary)
-        """
-        question_summary = self.summarize_question(question)
-        answer_summary = self.summarize_answer(answer)
-        return question_summary, answer_summary
-    
-    def _create_question_prompt(self, question: str) -> str:
-        """Create prompt for question summarization."""
-        return f"""请将以下问题简化为不超过20个字符的核心要点，保持原意：
-
-问题：{question}
-
-简化后的问题（不超过20字符）："""
-    
-    def _create_answer_prompt(self, answer: str) -> str:
-        """Create prompt for answer summarization."""
-        return f"""请将以下回答总结为不超过80个字符的要点，突出关键信息和解决方案
-                (如果内容超过100个字符,总结则不要少于 20个字符)：
-
-回答：{answer}
-
-总结（不超过80字符）："""
-    
-    def _call_llm(self, prompt: str, max_tokens: int = 150) -> Optional[str]:
-        """Call LLM API with the given prompt.
-        
-        Args:
-            prompt: The prompt to send to LLM
-            max_tokens: Maximum tokens to generate
-            
-        Returns:
-            LLM response text or None if call fails
-        """
+    def summarize_qa(self, qa_pair: QAPair) -> bool:
+        """Summarize both question and answer in a Q&A pair."""
         try:
-            messages = [{"content": prompt, "role": "user"}]
+            # Get max lengths from config
+            max_question_length = self.config_manager.get("summarizer.rule.max_question_length", 20)
+            max_answer_length = self.config_manager.get("summarizer.rule.max_answer_length", 80)
             
+            # Summarize question
+            if not qa_pair.question_summary:
+                qa_pair.question_summary = self._summarize_text(
+                    qa_pair.question, 
+                    max_length=max_question_length
+                )
+            
+            # Summarize answer
+            if not qa_pair.answer_summary:
+                qa_pair.answer_summary = self._summarize_text(
+                    qa_pair.answer,
+                    max_length=max_answer_length
+                )
+            
+            return True
+        except Exception as e:
+            print(f"Error summarizing Q&A: {e}")
+            return False
+    
+    def _summarize_text(self, text: str, max_length: int = 50) -> Optional[str]:
+        """Summarize text using LLM."""
+        if not text or len(text.strip()) <= max_length:
+            return text.strip()
+        
+        try:
+            # Prepare prompt
+            prompt = f"请将以下文本总结为不超过{max_length}个字符的简洁描述：\n\n{text}"
+            
+            # Get LLM configuration
+            model = self.llm_config.get("model", "moonshot/kimi-k2-0711-preview")
+            max_tokens = self.llm_config.get("max_tokens", 150)
+            temperature = self.llm_config.get("temperature", 0.3)
+            api_base = self.llm_config.get("api_base", "https://api.moonshot.cn/v1")
+            api_key = self.llm_config.get("api_key")
+            
+            # Call LLM
             response = completion(
-                model=self.llm_config.get('model', 'moonshot/kimi-k2-0711-preview'),
-                messages=messages,
-                api_base=self.llm_config.get('api_base', 'https://api.moonshot.cn/v1'),
-                api_key=self.llm_config['api_key'],
-                max_tokens=min(max_tokens, self.llm_config.get('max_tokens', 150)),
-                temperature=self.llm_config.get('temperature', 0.3)
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=max_tokens,
+                temperature=temperature,
+                api_base=api_base,
+                api_key=api_key
             )
-
-            return response.choices[0].message.content.strip()
+            
+            summary = response.choices[0].message.content.strip()
+            
+            # Ensure summary doesn't exceed max_length
+            if len(summary) > max_length:
+                summary = summary[:max_length-3] + "..."
+            
+            return summary
             
         except Exception as e:
             print(f"LLM summarization failed: {e}")
             return None
     
-    def get_usage_info(self) -> Dict[str, Any]:
+    def get_usage_info(self) -> dict:
         """Get information about LLM usage configuration."""
         return {
-            'provider': self.llm_config.get('provider', 'unknown'),
-            'model': self.llm_config.get('model', 'unknown'),
-            'api_base': self.llm_config.get('api_base', 'unknown'),
-            'max_tokens': self.llm_config.get('max_tokens', 150),
-            'temperature': self.llm_config.get('temperature', 0.3),
-            'api_key_configured': bool(self.llm_config.get('api_key'))
+            "model": self.llm_config.get("model", "unknown"),
+            "max_tokens": self.llm_config.get("max_tokens", 150),
+            "temperature": self.llm_config.get("temperature", 0.3)
         }
     
     def test_connection(self) -> bool:
@@ -135,7 +102,7 @@ class LLMSummarizer:
         """
         try:
             test_prompt = "请回答：你好"
-            response = self._call_llm(test_prompt, max_tokens=20)
+            response = self._summarize_text(test_prompt, max_length=20)
             return response is not None and len(response.strip()) > 0
         except Exception:
             return False

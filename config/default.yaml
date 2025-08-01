@@ -1,9 +1,10 @@
-# TalkShow Configuration File
+# TalkShow Default Configuration
+# This file provides default settings for TalkShow
 
 # Parser settings
 parser:
-  # Default history directory
-  history_directory: "history"
+  # Default history directory (relative to project root)
+  history_directory: ".specstory/history"
   
   # File patterns to include
   include_patterns:
@@ -16,16 +17,20 @@ parser:
 
 # Summarizer settings
 summarizer:
+  # Enable/disable summarization
+  enabled: true
+  
   # Rule-based summarizer settings
   rule:
     max_question_length: 20
     max_answer_length: 80
   
-  # LLM summarizer settings (for future use)
+  # LLM summarizer settings
   llm:
-    provider: "openai"
+    enabled: false  # Default to false for cost control
+    provider: "moonshot"
+    api_key: "xxxxxxxxxxxxx"
     model: "moonshot/kimi-k2-0711-preview"
-    api_key: "sk-your-api-key-here"  # 可以直接在配置文件中设置
     max_tokens: 150
     temperature: 0.3
 
@@ -36,14 +41,28 @@ storage:
   
   # JSON storage settings
   json:
-    file_path: "data/sessions.json"
+    file_path: ".specstory/data/sessions.json"
     backup_enabled: true
     backup_interval: "daily"
   
   # SQLite storage settings (for future use)
   sqlite:
-    database_path: "data/sessions.db"
+    database_path: ".specstory/data/sessions.db"
     backup_enabled: true
+
+# Web server settings
+web:
+  host: "127.0.0.1"
+  port: 8000
+  debug: false
+  reload: true
+  
+  # CORS settings
+  cors:
+    enabled: true
+    origins:
+      - "http://localhost:3000"
+      - "http://127.0.0.1:3000"
 
 # CLI settings
 cli:
@@ -56,21 +75,13 @@ cli:
   # Date format for display
   date_format: "%Y-%m-%d %H:%M:%S"
 
-# Web server settings (for future use)
-web:
-  host: "127.0.0.1"
-  port: 8000
-  debug: false
-  
-  # CORS settings
-  cors:
-    enabled: true
-    origins:
-      - "http://localhost:3000"
-      - "http://127.0.0.1:3000"
-
 # Logging settings
 logging:
   level: "INFO"
   format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
   file: "logs/talkshow.log"
+
+# Project settings
+project:
+  name: "TalkShow Project"
+  description: "Chat history analysis and visualization"
